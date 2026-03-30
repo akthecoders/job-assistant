@@ -59,7 +59,7 @@ export default function App() {
 
         {/* Navigation */}
         <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto scrollbar-thin">
-          <p className="px-3 text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">
+          <p className="px-3 text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">
             Navigation
           </p>
           <NavLink to="/" end className={navLinkClass}>

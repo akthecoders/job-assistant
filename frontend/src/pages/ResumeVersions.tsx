@@ -78,8 +78,8 @@ export default function ResumeVersions() {
 
   return (
     <div className="flex flex-col h-full">
-      <div className="flex-shrink-0 px-6 py-5 border-b border-white/5">
-        <h1 className="text-xl font-semibold text-slate-100">Resume Versions</h1>
+      <div className="flex-shrink-0 px-6 py-5 border-b border-slate-200">
+        <h1 className="text-xl font-semibold text-slate-800">Resume Versions</h1>
         <p className="text-sm text-slate-500 mt-0.5">Snapshot tailored resumes and compare changes side by side</p>
       </div>
 
@@ -89,7 +89,7 @@ export default function ResumeVersions() {
           <select
             value={selectedId ?? ''}
             onChange={e => { setSelectedId(Number(e.target.value) || null); setVersions([]); setDiff(null) }}
-            className="flex-1 bg-slate-800 border border-slate-700 rounded-xl px-4 py-2.5 text-sm text-slate-200 focus:outline-none focus:border-blue-500"
+            className="flex-1 bg-white border border-slate-300 rounded-xl px-4 py-2.5 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
           >
             <option value="">Select an application...</option>
             {apps.map(a => (
@@ -99,7 +99,7 @@ export default function ResumeVersions() {
 
           {selectedId && (
             <button onClick={() => takeSnapshot()} disabled={snapshotting}
-              className="px-4 py-2.5 bg-blue-600 hover:bg-blue-500 disabled:opacity-50 rounded-xl text-sm font-medium text-white transition-colors shrink-0">
+              className="px-4 py-2.5 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 rounded-xl text-sm font-medium text-white transition-colors shrink-0">
               {snapshotting ? 'Saving...' : '+ Snapshot'}
             </button>
           )}
@@ -110,39 +110,39 @@ export default function ResumeVersions() {
             {/* Version timeline */}
             <div className="space-y-2">
               <div className="flex items-center justify-between">
-                <p className="text-xs font-medium text-slate-400">{versions.length} version{versions.length !== 1 ? 's' : ''}</p>
+                <p className="text-xs font-semibold text-slate-600">{versions.length} version{versions.length !== 1 ? 's' : ''}</p>
                 {versions.length >= 2 && (
                   <button onClick={() => { setCompareMode(m => !m); setDiff(null) }}
-                    className={`text-xs px-3 py-1.5 rounded-lg border transition-colors ${compareMode ? 'bg-violet-600 border-violet-500 text-white' : 'border-slate-700 text-slate-400 hover:border-slate-600'}`}>
+                    className={`text-xs px-3 py-1.5 rounded-lg border transition-colors font-medium ${compareMode ? 'bg-violet-600 border-violet-500 text-white' : 'border-slate-300 text-slate-600 hover:border-slate-400 hover:bg-slate-50'}`}>
                     {compareMode ? 'Exit Compare' : 'Compare Versions'}
                   </button>
                 )}
               </div>
 
               {versions.map(v => (
-                <div key={v.id} className="flex items-center gap-3 bg-slate-800/40 border border-slate-700/50 rounded-xl px-4 py-3">
+                <div key={v.id} className="flex items-center gap-3 bg-white border border-slate-200 rounded-xl px-4 py-3 shadow-sm">
                   <div className="w-2 h-2 rounded-full bg-blue-500 shrink-0" />
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-slate-200">{v.version_label}</p>
+                    <p className="text-sm font-medium text-slate-800">{v.version_label}</p>
                     <p className="text-xs text-slate-500">{new Date(v.created_at).toLocaleString()}</p>
                   </div>
                   {v.ats_score != null && (
-                    <span className={`text-xs px-2 py-0.5 rounded-full border ${
-                      v.ats_score >= 80 ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30' :
-                      v.ats_score >= 60 ? 'bg-amber-500/10 text-amber-400 border-amber-500/30' :
-                      'bg-red-500/10 text-red-400 border-red-500/30'
+                    <span className={`text-xs px-2 py-0.5 rounded-full border font-medium ${
+                      v.ats_score >= 80 ? 'bg-emerald-50 text-emerald-700 border-emerald-200' :
+                      v.ats_score >= 60 ? 'bg-amber-50 text-amber-700 border-amber-200' :
+                      'bg-red-50 text-red-700 border-red-200'
                     }`}>ATS {v.ats_score}%</span>
                   )}
                   {compareMode && (
                     <div className="flex gap-1">
                       <button onClick={() => setV1Id(v.id)}
-                        className={`text-[10px] px-2 py-0.5 rounded border transition-colors ${v1Id === v.id ? 'bg-blue-600 border-blue-500 text-white' : 'border-slate-600 text-slate-500'}`}>A</button>
+                        className={`text-xs px-2 py-0.5 rounded border font-medium transition-colors ${v1Id === v.id ? 'bg-blue-600 border-blue-500 text-white' : 'border-slate-300 text-slate-600 hover:border-slate-400'}`}>A</button>
                       <button onClick={() => setV2Id(v.id)}
-                        className={`text-[10px] px-2 py-0.5 rounded border transition-colors ${v2Id === v.id ? 'bg-violet-600 border-violet-500 text-white' : 'border-slate-600 text-slate-500'}`}>B</button>
+                        className={`text-xs px-2 py-0.5 rounded border font-medium transition-colors ${v2Id === v.id ? 'bg-violet-600 border-violet-500 text-white' : 'border-slate-300 text-slate-600 hover:border-slate-400'}`}>B</button>
                     </div>
                   )}
                   <button onClick={() => deleteVersion(v.id)}
-                    className="text-slate-600 hover:text-red-400 transition-colors text-xs">x</button>
+                    className="text-slate-400 hover:text-red-600 transition-colors text-sm font-medium px-1">×</button>
                 </div>
               ))}
             </div>
@@ -150,7 +150,7 @@ export default function ResumeVersions() {
             {/* Compare button */}
             {compareMode && v1Id && v2Id && v1Id !== v2Id && (
               <button onClick={loadDiff} disabled={loadingDiff}
-                className="w-full py-2.5 bg-violet-600 hover:bg-violet-500 disabled:opacity-50 rounded-xl text-sm font-medium text-white transition-colors">
+                className="w-full py-2.5 bg-violet-600 hover:bg-violet-700 disabled:opacity-50 rounded-xl text-sm font-medium text-white transition-colors">
                 {loadingDiff ? 'Computing diff...' : 'Show Diff'}
               </button>
             )}
@@ -159,23 +159,23 @@ export default function ResumeVersions() {
             {diff && (
               <div className="space-y-3">
                 <div className="flex items-center justify-between">
-                  <p className="text-xs font-medium text-slate-400">
+                  <p className="text-xs font-semibold text-slate-600">
                     {diff.v1.label} to {diff.v2.label}
                   </p>
-                  <div className="flex gap-3 text-xs">
-                    <span className="text-emerald-400">+{diff.stats.added}</span>
-                    <span className="text-red-400">-{diff.stats.removed}</span>
+                  <div className="flex gap-3 text-xs font-medium">
+                    <span className="text-emerald-700">+{diff.stats.added}</span>
+                    <span className="text-red-700">-{diff.stats.removed}</span>
                     <span className="text-slate-500">={diff.stats.unchanged}</span>
                   </div>
                 </div>
-                <div className="bg-slate-900 border border-slate-700 rounded-xl overflow-hidden font-mono text-xs max-h-96 overflow-y-auto">
+                <div className="bg-slate-50 border border-slate-200 rounded-xl overflow-hidden font-mono text-xs max-h-96 overflow-y-auto">
                   {diff.diff.map((line, i) => (
                     <div key={i} className={`px-4 py-0.5 ${
-                      line.type === 'add' ? 'bg-emerald-500/10 text-emerald-300' :
-                      line.type === 'remove' ? 'bg-red-500/10 text-red-300 line-through opacity-60' :
-                      'text-slate-400'
+                      line.type === 'add' ? 'bg-emerald-50 text-emerald-800' :
+                      line.type === 'remove' ? 'bg-red-50 text-red-700 line-through opacity-70' :
+                      'text-slate-600'
                     }`}>
-                      <span className="select-none mr-2 opacity-40">
+                      <span className="select-none mr-2 opacity-50">
                         {line.type === 'add' ? '+' : line.type === 'remove' ? '-' : ' '}
                       </span>
                       {line.content || ' '}
@@ -188,13 +188,13 @@ export default function ResumeVersions() {
         )}
 
         {selectedId && versions.length === 0 && (
-          <div className="text-center py-12 text-slate-600 text-sm">
+          <div className="text-center py-12 text-slate-500 text-sm">
             No snapshots yet — tailor a resume then click "+ Snapshot"
           </div>
         )}
 
         {!selectedId && (
-          <div className="text-center py-16 text-slate-600 text-sm">
+          <div className="text-center py-16 text-slate-500 text-sm">
             Select an application to manage resume versions
           </div>
         )}

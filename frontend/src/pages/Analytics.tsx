@@ -6,11 +6,11 @@ interface PatternData { by_day_of_week: any[]; score_stats: any; ghost_stats: an
 interface DiagnosticData { tips: string[]; counts: Record<string, number> }
 
 const STAGE_COLORS: Record<string, string> = {
-  saved: 'bg-slate-600',
+  saved: 'bg-slate-400',
   applied: 'bg-blue-500',
   interview: 'bg-violet-500',
   offer: 'bg-emerald-500',
-  rejected: 'bg-red-500/60',
+  rejected: 'bg-red-400',
 }
 
 const STAGE_LABELS: Record<string, string> = {
@@ -45,31 +45,31 @@ export default function Analytics() {
 
   return (
     <div className="flex flex-col h-full">
-      <div className="flex-shrink-0 px-6 py-5 border-b border-white/5">
-        <h1 className="text-xl font-semibold text-slate-100">Analytics</h1>
+      <div className="flex-shrink-0 px-6 py-5 border-b border-slate-200">
+        <h1 className="text-xl font-semibold text-slate-800">Analytics</h1>
         <p className="text-sm text-slate-500 mt-0.5">Application funnel and performance patterns</p>
       </div>
 
       <div className="flex-1 overflow-y-auto px-6 py-5 space-y-6">
-        {loading && <p className="text-slate-500 text-sm animate-pulse">Loading analytics...</p>}
+        {loading && <p className="text-slate-600 text-sm animate-pulse">Loading analytics...</p>}
 
         {/* Funnel */}
         {funnel && (
-          <div className="bg-slate-800/40 border border-slate-700/50 rounded-xl p-5 space-y-4">
+          <div className="bg-white border border-slate-200 rounded-xl p-5 space-y-4 shadow-sm">
             <div className="flex items-center justify-between">
-              <h2 className="text-sm font-semibold text-slate-200">Application Funnel</h2>
-              <span className="text-xs text-slate-500">{funnel.response_rate}% response rate</span>
+              <h2 className="text-sm font-semibold text-slate-800">Application Funnel</h2>
+              <span className="text-xs text-slate-500 font-medium">{funnel.response_rate}% response rate</span>
             </div>
             <div className="space-y-3">
               {funnel.funnel.map(s => (
                 <div key={s.stage} className="space-y-1">
                   <div className="flex items-center justify-between text-xs">
-                    <span className="text-slate-400 capitalize">{STAGE_LABELS[s.stage] || s.stage}</span>
-                    <span className="text-slate-300 font-medium">{s.count}</span>
+                    <span className="text-slate-600 font-medium capitalize">{STAGE_LABELS[s.stage] || s.stage}</span>
+                    <span className="text-slate-800 font-semibold">{s.count}</span>
                   </div>
-                  <div className="h-2 bg-slate-700 rounded-full overflow-hidden">
+                  <div className="h-2.5 bg-slate-100 rounded-full overflow-hidden">
                     <div
-                      className={`h-full rounded-full transition-all ${STAGE_COLORS[s.stage] || 'bg-slate-500'}`}
+                      className={`h-full rounded-full transition-all ${STAGE_COLORS[s.stage] || 'bg-slate-400'}`}
                       style={{ width: `${(s.count / maxCount) * 100}%` }}
                     />
                   </div>
@@ -81,14 +81,14 @@ export default function Analytics() {
 
         {/* Day of week */}
         {patterns !== null && patterns.by_day_of_week?.length > 0 && (
-          <div className="bg-slate-800/40 border border-slate-700/50 rounded-xl p-5 space-y-4">
-            <h2 className="text-sm font-semibold text-slate-200">Applications by Day</h2>
+          <div className="bg-white border border-slate-200 rounded-xl p-5 space-y-4 shadow-sm">
+            <h2 className="text-sm font-semibold text-slate-800">Applications by Day</h2>
             <div className="flex items-end gap-2 h-24">
               {patterns.by_day_of_week.map((d: any) => (
                 <div key={d.day} className="flex-1 flex flex-col items-center gap-1">
                   <div className="w-full flex flex-col items-center justify-end" style={{ height: '80px' }}>
                     <div
-                      className="w-full bg-blue-500/60 rounded-t"
+                      className="w-full bg-blue-500 rounded-t opacity-70"
                       style={{ height: `${(d.applications / maxDow) * 70}px`, minHeight: d.applications ? '4px' : '0' }}
                     />
                     {d.responses > 0 && (
@@ -98,13 +98,13 @@ export default function Analytics() {
                       />
                     )}
                   </div>
-                  <span className="text-[10px] text-slate-500">{d.day}</span>
+                  <span className="text-[10px] text-slate-500 font-medium">{d.day}</span>
                 </div>
               ))}
             </div>
-            <div className="flex gap-4 text-[10px] text-slate-500">
-              <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-sm bg-blue-500/60 inline-block" />Applications</span>
-              <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-sm bg-emerald-500 inline-block" />Responses</span>
+            <div className="flex gap-4 text-xs text-slate-500">
+              <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-sm bg-blue-500 opacity-70 inline-block" />Applications</span>
+              <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-sm bg-emerald-500 inline-block" />Responses</span>
             </div>
           </div>
         )}
@@ -117,9 +117,9 @@ export default function Analytics() {
               { label: 'Avg Fit Score', value: Math.round(patterns.score_stats.avg_fit || 0), suffix: '%' },
               { label: 'Ghost Jobs', value: patterns.ghost_stats?.likely_ghost || 0, suffix: ` of ${patterns.ghost_stats?.total || 0}` },
             ].map(s => (
-              <div key={s.label} className="bg-slate-800/40 border border-slate-700/50 rounded-xl p-4 text-center">
-                <p className="text-2xl font-bold text-slate-100">{s.value}<span className="text-sm text-slate-500">{s.suffix}</span></p>
-                <p className="text-[10px] text-slate-500 mt-1">{s.label}</p>
+              <div key={s.label} className="bg-white border border-slate-200 rounded-xl p-4 text-center shadow-sm">
+                <p className="text-2xl font-bold text-slate-800">{s.value}<span className="text-sm font-normal text-slate-500">{s.suffix}</span></p>
+                <p className="text-xs text-slate-500 font-medium mt-1">{s.label}</p>
               </div>
             ))}
           </div>
@@ -127,12 +127,12 @@ export default function Analytics() {
 
         {/* Diagnostics */}
         {diagnostics !== null && diagnostics.tips?.length > 0 && (
-          <div className="bg-blue-950/30 border border-blue-900/40 rounded-xl p-5 space-y-3">
-            <h2 className="text-sm font-semibold text-blue-300">Recommendations</h2>
+          <div className="bg-blue-50 border border-blue-200 rounded-xl p-5 space-y-3">
+            <h2 className="text-sm font-semibold text-blue-800">Recommendations</h2>
             <ul className="space-y-2">
               {diagnostics.tips.map((tip, i) => (
-                <li key={i} className="text-xs text-slate-300 flex gap-2">
-                  <span className="text-blue-400 shrink-0">-&gt;</span>{tip}
+                <li key={i} className="text-sm text-slate-700 flex gap-2">
+                  <span className="text-blue-600 font-bold shrink-0">→</span>{tip}
                 </li>
               ))}
             </ul>

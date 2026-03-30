@@ -3,6 +3,22 @@ import react from '@vitejs/plugin-react'
 import { resolve } from 'path'
 import { copyFileSync, mkdirSync, existsSync, readdirSync } from 'fs'
 
+// Wraps content scripts in an IIFE to prevent minified variable name collisions
+// when multiple content scripts run in the same page context (Chrome MV3 isolated world).
+function wrapContentScripts() {
+  const targets = new Set(['content.js', 'autofill.js'])
+  return {
+    name: 'wrap-content-scripts',
+    generateBundle(_opts: unknown, bundle: Record<string, { type: string; code?: string }>) {
+      for (const [fileName, chunk] of Object.entries(bundle)) {
+        if (targets.has(fileName) && chunk.type === 'chunk' && chunk.code) {
+          chunk.code = `;(function(){\n${chunk.code}\n})();\n`
+        }
+      }
+    },
+  }
+}
+
 // Plugin that copies manifest.json, assets/, and flattens HTML output
 function chromeExtensionPlugin() {
   return {
@@ -42,7 +58,7 @@ function chromeExtensionPlugin() {
 }
 
 export default defineConfig({
-  plugins: [react(), chromeExtensionPlugin()],
+  plugins: [react(), wrapContentScripts(), chromeExtensionPlugin()],
   base: './',
   build: {
     outDir: 'dist',

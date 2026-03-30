@@ -24,9 +24,9 @@ interface AlertResult {
 }
 
 const FREQ_CONFIG: Record<string, { label: string; badge: string }> = {
-  daily:       { label: 'Daily',       badge: 'bg-blue-500/20 text-blue-300 border border-blue-500/30' },
-  twice_daily: { label: 'Twice Daily', badge: 'bg-violet-500/20 text-violet-300 border border-violet-500/30' },
-  weekly:      { label: 'Weekly',      badge: 'bg-slate-600/50 text-slate-300 border border-slate-600/60' },
+  daily:       { label: 'Daily',       badge: 'bg-blue-100 text-blue-700 border border-blue-300' },
+  twice_daily: { label: 'Twice Daily', badge: 'bg-violet-100 text-violet-700 border border-violet-300' },
+  weekly:      { label: 'Weekly',      badge: 'bg-slate-100 text-slate-700 border border-slate-300' },
 }
 
 function formatDate(iso: string | null): string {
@@ -52,6 +52,7 @@ function AlertCard({ alert, onDeleted, onToggled }: AlertCardProps) {
   const [loadingResults, setLoadingResults] = useState(false)
   const [polling, setPolling] = useState(false)
   const [deleting, setDeleting] = useState(false)
+  const [confirmDelete, setConfirmDelete] = useState(false)
   const [toggling, setToggling] = useState(false)
   const [resultCount, setResultCount] = useState<number | null>(null)
 
@@ -112,13 +113,14 @@ function AlertCard({ alert, onDeleted, onToggled }: AlertCardProps) {
   }
 
   const handleDelete = async () => {
-    if (!confirm(`Delete alert for "${alert.query_keywords}"?`)) return
+    if (!confirmDelete) { setConfirmDelete(true); return }
     setDeleting(true)
     try {
       await fetch(`/api/alerts/${alert.id}`, { method: 'DELETE' })
       onDeleted()
     } catch {
       setDeleting(false)
+      setConfirmDelete(false)
     }
   }
 
@@ -126,13 +128,13 @@ function AlertCard({ alert, onDeleted, onToggled }: AlertCardProps) {
   const isActive = alert.is_active === 1
 
   return (
-    <div className="bg-slate-800/40 border border-slate-700/50 rounded-xl overflow-hidden">
+    <div className="bg-white border border-slate-200 rounded-xl overflow-hidden shadow-sm">
       {/* Card header */}
       <div className="flex items-start gap-3 p-4">
         {/* Active dot */}
         <div className="flex-shrink-0 mt-1">
           <span
-            className={`block w-2.5 h-2.5 rounded-full ${isActive ? 'bg-emerald-400' : 'bg-slate-600'}`}
+            className={`block w-2.5 h-2.5 rounded-full ${isActive ? 'bg-emerald-500' : 'bg-slate-400'}`}
             title={isActive ? 'Active' : 'Paused'}
           />
         </div>
@@ -140,13 +142,13 @@ function AlertCard({ alert, onDeleted, onToggled }: AlertCardProps) {
         {/* Main content */}
         <div className="flex-1 min-w-0">
           <div className="flex flex-wrap items-center gap-2">
-            <span className="text-sm font-semibold text-slate-100 truncate">
+            <span className="text-sm font-semibold text-slate-800 truncate">
               {alert.query_keywords}
             </span>
             {alert.location && (
-              <span className="text-xs text-slate-400">&mdash; {alert.location}</span>
+              <span className="text-xs text-slate-500">&mdash; {alert.location}</span>
             )}
-            <span className={`text-[11px] font-medium px-2 py-0.5 rounded-full ${freqCfg.badge}`}>
+            <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${freqCfg.badge}`}>
               {freqCfg.label}
             </span>
           </div>
@@ -162,12 +164,12 @@ function AlertCard({ alert, onDeleted, onToggled }: AlertCardProps) {
             onClick={handleToggle}
             disabled={toggling}
             title={isActive ? 'Pause alert' : 'Resume alert'}
-            className="p-1.5 rounded-lg text-slate-400 hover:text-slate-200 hover:bg-slate-700/60 transition-colors disabled:opacity-50"
+            className="p-1.5 rounded-lg text-slate-500 hover:text-slate-700 hover:bg-slate-100 transition-colors disabled:opacity-50"
           >
             {toggling
               ? <Loader2 className="w-4 h-4 animate-spin" />
               : isActive
-                ? <ToggleRight className="w-4 h-4 text-emerald-400" />
+                ? <ToggleRight className="w-4 h-4 text-emerald-600" />
                 : <ToggleLeft className="w-4 h-4" />
             }
           </button>
@@ -177,7 +179,7 @@ function AlertCard({ alert, onDeleted, onToggled }: AlertCardProps) {
             onClick={handlePoll}
             disabled={polling}
             title="Poll now"
-            className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-medium bg-blue-600/20 text-blue-300 border border-blue-600/30 hover:bg-blue-600/30 transition-colors disabled:opacity-50"
+            className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-medium bg-blue-50 text-blue-700 border border-blue-200 hover:bg-blue-100 transition-colors disabled:opacity-50"
           >
             {polling ? (
               <>
@@ -193,22 +195,28 @@ function AlertCard({ alert, onDeleted, onToggled }: AlertCardProps) {
           </button>
 
           {/* Delete */}
-          <button
-            onClick={handleDelete}
-            disabled={deleting}
-            title="Delete alert"
-            className="p-1.5 rounded-lg text-slate-500 hover:text-red-400 hover:bg-red-500/10 transition-colors disabled:opacity-50"
-          >
-            {deleting
-              ? <Loader2 className="w-4 h-4 animate-spin" />
-              : <Trash2 className="w-4 h-4" />
-            }
-          </button>
+          {confirmDelete ? (
+            <div className="flex items-center gap-1">
+              <button onClick={handleDelete} disabled={deleting}
+                className="px-2 py-1 text-xs font-medium text-white bg-red-600 hover:bg-red-700 rounded-lg transition-colors disabled:opacity-50">
+                {deleting ? <Loader2 className="w-3 h-3 animate-spin" /> : 'Yes'}
+              </button>
+              <button onClick={() => setConfirmDelete(false)}
+                className="px-2 py-1 text-xs font-medium text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors">
+                No
+              </button>
+            </div>
+          ) : (
+            <button onClick={handleDelete} title="Delete alert"
+              className="p-1.5 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 transition-colors">
+              <Trash2 className="w-4 h-4" />
+            </button>
+          )}
 
           {/* Expand results */}
           <button
             onClick={handleExpand}
-            className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-medium text-slate-400 hover:text-slate-200 hover:bg-slate-700/60 transition-colors"
+            className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-medium text-slate-600 hover:text-slate-800 hover:bg-slate-100 transition-colors"
           >
             Results {resultCount !== null ? `(${resultCount})` : ''}
             {expanded
@@ -221,7 +229,7 @@ function AlertCard({ alert, onDeleted, onToggled }: AlertCardProps) {
 
       {/* Expanded results */}
       {expanded && (
-        <div className="border-t border-slate-700/50 bg-slate-900/30">
+        <div className="border-t border-slate-200 bg-slate-50">
           {loadingResults && (
             <div className="flex items-center gap-2 px-5 py-4 text-slate-500 text-sm">
               <Loader2 className="w-4 h-4 animate-spin" />
@@ -236,9 +244,9 @@ function AlertCard({ alert, onDeleted, onToggled }: AlertCardProps) {
           )}
 
           {!loadingResults && results.length > 0 && (
-            <ul className="divide-y divide-slate-700/40">
+            <ul className="divide-y divide-slate-200">
               {results.map(r => (
-                <li key={r.id} className="px-5 py-3 hover:bg-slate-800/30 transition-colors">
+                <li key={r.id} className="px-5 py-3 hover:bg-white transition-colors">
                   <div className="flex items-start justify-between gap-3">
                     <div className="flex-1 min-w-0">
                       {r.job_url ? (
@@ -246,19 +254,19 @@ function AlertCard({ alert, onDeleted, onToggled }: AlertCardProps) {
                           href={r.job_url}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="text-sm font-medium text-blue-300 hover:text-blue-200 flex items-center gap-1 group"
+                          className="text-sm font-medium text-blue-600 hover:text-blue-800 flex items-center gap-1 group"
                         >
                           <span className="truncate">{r.job_title || r.job_url}</span>
                           <ExternalLink className="w-3 h-3 flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity" />
                         </a>
                       ) : (
-                        <span className="text-sm font-medium text-slate-300">{r.job_title}</span>
+                        <span className="text-sm font-medium text-slate-700">{r.job_title}</span>
                       )}
                       {r.snippet && (
                         <p className="text-xs text-slate-500 mt-0.5 line-clamp-2">{r.snippet}</p>
                       )}
                     </div>
-                    <span className="text-[11px] text-slate-600 flex-shrink-0 mt-0.5">
+                    <span className="text-xs text-slate-400 flex-shrink-0 mt-0.5">
                       {formatDate(r.found_at)}
                     </span>
                   </div>
@@ -344,11 +352,11 @@ export default function JobAlerts() {
   return (
     <div className="flex flex-col h-full">
       {/* Header */}
-      <div className="flex-shrink-0 px-6 py-5 border-b border-white/5">
+      <div className="flex-shrink-0 px-6 py-5 border-b border-slate-200">
         <div className="flex items-center gap-2.5">
-          <Bell className="w-5 h-5 text-blue-400 flex-shrink-0" />
+          <Bell className="w-5 h-5 text-blue-600 flex-shrink-0" />
           <div>
-            <h1 className="text-xl font-semibold text-slate-100">Job Alerts</h1>
+            <h1 className="text-xl font-semibold text-slate-800">Job Alerts</h1>
             <p className="text-sm text-slate-500 mt-0.5">
               Define keyword alerts and get matched job postings delivered to your dashboard
             </p>
@@ -358,24 +366,24 @@ export default function JobAlerts() {
 
       <div className="flex-1 overflow-y-auto px-6 py-5 space-y-6">
         {/* Create alert form */}
-        <div className="bg-slate-800/40 border border-slate-700/50 rounded-xl p-5">
-          <h2 className="text-sm font-semibold text-slate-200 mb-4">Create New Alert</h2>
+        <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-sm">
+          <h2 className="text-sm font-semibold text-slate-800 mb-4">Create New Alert</h2>
           <form onSubmit={handleCreate} className="space-y-4">
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               <div className="sm:col-span-1">
-                <label className="block text-xs font-medium text-slate-400 mb-1.5">
-                  Keywords <span className="text-red-400">*</span>
+                <label className="block text-xs font-semibold text-slate-600 mb-1.5">
+                  Keywords <span className="text-red-500">*</span>
                 </label>
                 <input
                   type="text"
                   value={keywords}
                   onChange={e => setKeywords(e.target.value)}
                   placeholder="e.g. Senior React Engineer"
-                  className="w-full bg-slate-900/60 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-100 placeholder-slate-600 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full bg-white border border-slate-300 rounded-lg px-3 py-2 text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 />
               </div>
               <div>
-                <label className="block text-xs font-medium text-slate-400 mb-1.5">
+                <label className="block text-xs font-semibold text-slate-600 mb-1.5">
                   Location
                 </label>
                 <input
@@ -383,17 +391,17 @@ export default function JobAlerts() {
                   value={location}
                   onChange={e => setLocation(e.target.value)}
                   placeholder="e.g. San Francisco or Remote"
-                  className="w-full bg-slate-900/60 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-100 placeholder-slate-600 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full bg-white border border-slate-300 rounded-lg px-3 py-2 text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 />
               </div>
               <div>
-                <label className="block text-xs font-medium text-slate-400 mb-1.5">
+                <label className="block text-xs font-semibold text-slate-600 mb-1.5">
                   Frequency
                 </label>
                 <select
                   value={frequency}
                   onChange={e => setFrequency(e.target.value)}
-                  className="w-full bg-slate-900/60 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-100 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full bg-white border border-slate-300 rounded-lg px-3 py-2 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 >
                   <option value="daily">Daily</option>
                   <option value="twice_daily">Twice Daily</option>
@@ -403,7 +411,7 @@ export default function JobAlerts() {
             </div>
 
             {error && (
-              <p className="text-xs text-red-400 bg-red-500/10 border border-red-500/20 rounded-lg px-3 py-2">
+              <p className="text-sm text-red-700 bg-red-50 border border-red-200 rounded-lg px-3 py-2">
                 {error}
               </p>
             )}
@@ -431,7 +439,7 @@ export default function JobAlerts() {
         {/* Alerts list */}
         <div className="space-y-3">
           <div className="flex items-center justify-between">
-            <h2 className="text-sm font-semibold text-slate-200">
+            <h2 className="text-sm font-semibold text-slate-800">
               Active Alerts
               {alerts.length > 0 && (
                 <span className="ml-2 text-xs font-normal text-slate-500">
@@ -446,8 +454,8 @@ export default function JobAlerts() {
           )}
 
           {!loading && alerts.length === 0 && (
-            <div className="bg-slate-800/40 border border-slate-700/50 rounded-xl p-8 text-center">
-              <Bell className="w-8 h-8 text-slate-600 mx-auto mb-3" />
+            <div className="bg-white border border-slate-200 rounded-xl p-8 text-center shadow-sm">
+              <Bell className="w-8 h-8 text-slate-400 mx-auto mb-3" />
               <p className="text-sm text-slate-500">
                 No alerts yet. Add keywords above to start tracking jobs.
               </p>

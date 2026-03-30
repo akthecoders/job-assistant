@@ -32,6 +32,7 @@ interface AddApplicationForm {
   company: string
   job_url: string
   status: Application['status']
+  job_description: string
   notes: string
 }
 
@@ -40,6 +41,7 @@ const DEFAULT_FORM: AddApplicationForm = {
   company: '',
   job_url: '',
   status: 'saved',
+  job_description: '',
   notes: '',
 }
 
@@ -68,6 +70,7 @@ function AddApplicationModal({
         company: form.company.trim(),
         job_url: form.job_url.trim() || undefined,
         status: form.status,
+        job_description: form.job_description.trim() || undefined,
         notes: form.notes.trim() || undefined,
       })
       onCreated()
@@ -125,6 +128,19 @@ function AddApplicationModal({
               onChange={e => setForm(f => ({ ...f, job_url: e.target.value }))}
               placeholder="https://..."
               className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-1">
+              Job Description
+              <span className="ml-1 text-xs font-normal text-slate-400">(needed for AI tailor / cover letter)</span>
+            </label>
+            <textarea
+              value={form.job_description}
+              onChange={e => setForm(f => ({ ...f, job_description: e.target.value }))}
+              rows={5}
+              placeholder="Paste the full job description here to enable AI resume tailoring and cover letter generation…"
+              className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
             />
           </div>
           <div>
@@ -216,7 +232,7 @@ function FitScorePanel({ appId }: { appId: number }) {
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-between">
-        <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Job Fit Score</h3>
+        <h3 className="text-xs font-semibold text-slate-600 uppercase tracking-wider">Job Fit Score</h3>
         <button
           onClick={runScore}
           disabled={loading}
@@ -230,7 +246,7 @@ function FitScorePanel({ appId }: { appId: number }) {
       {score !== null && (
         <div className="flex items-center gap-3">
           <span className={`text-3xl font-bold ${scoreColor}`}>{score}</span>
-          <span className="text-slate-400 text-sm">/ 100</span>
+          <span className="text-slate-500 text-sm">/ 100</span>
           <div className="flex-1 h-2 bg-slate-200 rounded-full overflow-hidden">
             <div
               className={`h-full rounded-full transition-all duration-500 ${barColor}`}
@@ -247,7 +263,7 @@ function FitScorePanel({ appId }: { appId: number }) {
           </p>
           <ul className="space-y-1">
             {fit!.met_requirements.slice(0, 4).map((r, i) => (
-              <li key={i} className="text-xs text-slate-600 flex items-start gap-1.5">
+              <li key={i} className="text-xs text-slate-700 flex items-start gap-1.5">
                 <span className="w-1 h-1 rounded-full bg-emerald-400 mt-1.5 flex-shrink-0" />
                 {r}
               </li>
@@ -263,7 +279,7 @@ function FitScorePanel({ appId }: { appId: number }) {
           </p>
           <ul className="space-y-1">
             {fit!.unmet_requirements.slice(0, 4).map((r, i) => (
-              <li key={i} className="text-xs text-slate-600 flex items-start gap-1.5">
+              <li key={i} className="text-xs text-slate-700 flex items-start gap-1.5">
                 <span className="w-1 h-1 rounded-full bg-red-400 mt-1.5 flex-shrink-0" />
                 {r}
               </li>
@@ -294,7 +310,7 @@ function FitScorePanel({ appId }: { appId: number }) {
           </p>
           <ul className="space-y-1">
             {fit!.bridging_suggestions.map((s, i) => (
-              <li key={i} className="text-xs text-slate-600 flex items-start gap-1.5">
+              <li key={i} className="text-xs text-slate-700 flex items-start gap-1.5">
                 <span className="w-1 h-1 rounded-full bg-blue-400 mt-1.5 flex-shrink-0" />
                 {s}
               </li>
@@ -304,7 +320,7 @@ function FitScorePanel({ appId }: { appId: number }) {
       )}
 
       {!scored && !loading && (
-        <p className="text-xs text-slate-400">Click "Analyze Fit" to score this resume against the job description.</p>
+        <p className="text-xs text-slate-500">Click "Analyze Fit" to score this resume against the job description.</p>
       )}
     </div>
   )
@@ -334,27 +350,27 @@ function CompanyBriefCard({ company, jobTitle }: { company: string; jobTitle: st
     // Try cache first, fall back to generating
     fetch(`/api/company/research/${encodeURIComponent(company)}`)
       .then(r => r.ok ? r.json() : null)
-      .then(d => { if (d) setBrief(d); else load() })
-      .catch(() => load())
+      .then(d => { if (d) setBrief(d) })
+      .catch(() => {/* no cached data — user can click Research */})
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [company])
 
   if (loading) return (
     <div className="space-y-2">
       <div className="flex items-center justify-between">
-        <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Company Intel</h3>
+        <h3 className="text-xs font-semibold text-slate-600 uppercase tracking-wider">Company Intel</h3>
       </div>
-      <p className="text-xs text-slate-400 animate-pulse">Researching {company}…</p>
+      <p className="text-xs text-slate-500 animate-pulse">Researching {company}…</p>
     </div>
   )
 
   if (!brief) return (
     <div className="space-y-2">
       <div className="flex items-center justify-between">
-        <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Company Intel</h3>
+        <h3 className="text-xs font-semibold text-slate-600 uppercase tracking-wider">Company Intel</h3>
         <button
           onClick={() => load()}
-          className="text-xs px-3 py-1 bg-slate-100 hover:bg-slate-200 rounded-lg text-slate-600 transition-colors"
+          className="text-xs px-3 py-1 bg-slate-100 hover:bg-slate-200 rounded-lg text-slate-700 font-medium transition-colors"
         >
           Research
         </button>
@@ -365,10 +381,10 @@ function CompanyBriefCard({ company, jobTitle }: { company: string; jobTitle: st
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-between">
-        <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Company Intel</h3>
+        <h3 className="text-xs font-semibold text-slate-600 uppercase tracking-wider">Company Intel</h3>
         <button
           onClick={() => load(true)}
-          className="text-xs text-slate-400 hover:text-slate-600 transition-colors"
+          className="text-xs text-slate-500 hover:text-slate-700 font-medium transition-colors"
         >
           ↻ Refresh
         </button>
@@ -377,12 +393,12 @@ function CompanyBriefCard({ company, jobTitle }: { company: string; jobTitle: st
       {/* Funding & headcount badges */}
       <div className="flex flex-wrap gap-2">
         {brief.funding_stage && brief.funding_stage !== 'Unknown' && (
-          <span className="text-xs px-2.5 py-1 bg-blue-50 text-blue-700 border border-blue-200 rounded-full">
+          <span className="text-xs px-2.5 py-1 bg-blue-50 text-blue-700 border border-blue-200 rounded-full font-medium">
             {brief.funding_stage}
           </span>
         )}
         {brief.headcount_trend && brief.headcount_trend !== 'Unknown' && (
-          <span className="text-xs px-2.5 py-1 bg-slate-100 text-slate-600 rounded-full">
+          <span className="text-xs px-2.5 py-1 bg-slate-100 text-slate-700 border border-slate-200 rounded-full font-medium">
             {brief.headcount_trend}
           </span>
         )}
@@ -391,11 +407,11 @@ function CompanyBriefCard({ company, jobTitle }: { company: string; jobTitle: st
       {/* Recent news */}
       {brief.recent_news?.length > 0 && (
         <div>
-          <p className="text-xs font-semibold text-slate-500 mb-1.5">Recent News</p>
+          <p className="text-xs font-semibold text-slate-600 mb-1.5">Recent News</p>
           <ul className="space-y-1.5">
             {brief.recent_news.map((n: any, i: number) => (
               <li key={i} className="text-xs text-slate-700">
-                <span className="text-slate-400">{n.date} — </span>{n.title}
+                <span className="text-slate-500">{n.date} — </span>{n.title}
               </li>
             ))}
           </ul>
@@ -405,7 +421,7 @@ function CompanyBriefCard({ company, jobTitle }: { company: string; jobTitle: st
       {/* Glassdoor sentiment */}
       {brief.glassdoor_sentiment && brief.glassdoor_sentiment !== 'No data found' && (
         <div>
-          <p className="text-xs font-semibold text-slate-500 mb-1">Employee Sentiment</p>
+          <p className="text-xs font-semibold text-slate-600 mb-1">Employee Sentiment</p>
           <p className="text-xs text-slate-700 leading-relaxed">{brief.glassdoor_sentiment}</p>
         </div>
       )}
@@ -413,11 +429,11 @@ function CompanyBriefCard({ company, jobTitle }: { company: string; jobTitle: st
       {/* Interview patterns */}
       {brief.interview_patterns?.length > 0 && (
         <div>
-          <p className="text-xs font-semibold text-slate-500 mb-1.5">Interview Process</p>
+          <p className="text-xs font-semibold text-slate-600 mb-1.5">Interview Process</p>
           <ul className="space-y-1">
             {brief.interview_patterns.map((p: string, i: number) => (
               <li key={i} className="text-xs text-slate-700 flex gap-2">
-                <span className="text-violet-500 flex-shrink-0">•</span>{p}
+                <span className="text-violet-600 flex-shrink-0">•</span>{p}
               </li>
             ))}
           </ul>
@@ -427,10 +443,10 @@ function CompanyBriefCard({ company, jobTitle }: { company: string; jobTitle: st
       {/* Tech stack (stored in raw_signals column) */}
       {brief.raw_signals?.length > 0 && (
         <div>
-          <p className="text-xs font-semibold text-slate-500 mb-1.5">Tech Stack</p>
+          <p className="text-xs font-semibold text-slate-600 mb-1.5">Tech Stack</p>
           <div className="flex flex-wrap gap-1.5">
             {brief.raw_signals.map((t: string, i: number) => (
-              <span key={i} className="text-[10px] px-2 py-0.5 bg-slate-100 text-slate-500 rounded">
+              <span key={i} className="text-xs px-2 py-0.5 bg-slate-100 text-slate-600 border border-slate-200 rounded font-medium">
                 {t}
               </span>
             ))}
@@ -477,7 +493,7 @@ function OutreachPanel({ appId }: { appId: number }) {
       <div className="flex gap-2">
         {(['linkedin', 'cold_email'] as const).map(t => (
           <button key={t} onClick={() => setType(t)}
-            className={`flex-1 text-xs py-1.5 rounded-lg border transition-colors ${type === t ? 'bg-blue-600 border-blue-500 text-white' : 'border-slate-300 text-slate-500 hover:border-slate-400'}`}>
+            className={`flex-1 text-xs py-1.5 rounded-lg border transition-colors ${type === t ? 'bg-blue-600 border-blue-500 text-white' : 'border-slate-300 text-slate-600 hover:border-slate-400 hover:bg-slate-50'}`}>
             {t === 'linkedin' ? 'LinkedIn Message' : 'Cold Email'}
           </button>
         ))}
@@ -497,9 +513,9 @@ function OutreachPanel({ appId }: { appId: number }) {
       {drafts.map(d => (
         <div key={d.id} className="bg-white border border-slate-200 rounded-lg p-3 space-y-2">
           <div className="flex items-center justify-between">
-            <span className="text-[10px] text-slate-500 capitalize">{d.outreach_type === 'linkedin' ? 'LinkedIn' : 'Email'}</span>
+            <span className="text-xs text-slate-500 capitalize">{d.outreach_type === 'linkedin' ? 'LinkedIn' : 'Email'}</span>
             <button onClick={() => copy(d.id, d.draft_text)}
-              className="text-[10px] px-2 py-0.5 rounded bg-slate-100 hover:bg-slate-200 text-slate-600 transition-colors">
+              className="text-xs px-2 py-0.5 rounded bg-slate-100 hover:bg-slate-200 text-slate-700 transition-colors">
               {copied === d.id ? '✓ Copied' : 'Copy'}
             </button>
           </div>
@@ -561,11 +577,11 @@ function EmailDraftsPanel({ appId }: { appId: number; jobTitle: string; company:
           <div className="flex items-center justify-between">
             <span className="text-xs font-medium text-blue-600">{d.label || d.email_type}</span>
             <button onClick={() => copy(d.id, d.subject, d.body)}
-              className="text-[10px] px-2 py-0.5 rounded bg-slate-100 hover:bg-slate-200 text-slate-600 transition-colors">
+              className="text-xs px-2 py-0.5 rounded bg-slate-100 hover:bg-slate-200 text-slate-700 transition-colors">
               {copied === d.id ? '✓ Copied' : 'Copy'}
             </button>
           </div>
-          {d.subject && <p className="text-xs text-slate-500">Subject: {d.subject}</p>}
+          {d.subject && <p className="text-xs text-slate-600 font-medium">Subject: {d.subject}</p>}
           <p className="text-xs text-slate-700 whitespace-pre-wrap leading-relaxed">{d.body}</p>
         </div>
       ))}
@@ -638,18 +654,18 @@ function SalaryCoachPanel({ appId }: { appId: number }) {
               <div className="absolute inset-y-0 w-0.5 bg-white" style={{ left: '50%' }} />
             </div>
             {data.range_note && (
-              <p className="text-[10px] text-slate-400">{data.range_note}</p>
+              <p className="text-xs text-slate-500">{data.range_note}</p>
             )}
           </div>
 
           {/* Key leverage points */}
           {data.key_leverage_points?.length > 0 && (
             <div>
-              <p className="text-xs font-semibold text-slate-500 mb-1.5">Your Leverage</p>
+              <p className="text-xs font-semibold text-slate-600 mb-1.5">Your Leverage</p>
               <ul className="space-y-1">
                 {data.key_leverage_points.map((p: string, i: number) => (
-                  <li key={i} className="text-xs text-slate-600 flex items-start gap-1.5">
-                    <CheckCircle className="w-3 h-3 text-emerald-500 flex-shrink-0 mt-0.5" />
+                  <li key={i} className="text-xs text-slate-700 flex items-start gap-1.5">
+                    <CheckCircle className="w-3 h-3 text-emerald-600 flex-shrink-0 mt-0.5" />
                     {p}
                   </li>
                 ))}
@@ -660,7 +676,7 @@ function SalaryCoachPanel({ appId }: { appId: number }) {
           {/* Negotiation script toggle */}
           <button
             onClick={() => setShowScript(s => !s)}
-            className="w-full py-1.5 bg-slate-100 hover:bg-slate-200 rounded-lg text-xs text-slate-600 transition-colors border border-slate-200"
+            className="w-full py-1.5 bg-slate-100 hover:bg-slate-200 rounded-lg text-xs text-slate-700 font-medium transition-colors border border-slate-200"
           >
             {showScript ? '▲ Hide Negotiation Script' : '▼ Show Negotiation Script'}
           </button>
@@ -673,7 +689,7 @@ function SalaryCoachPanel({ appId }: { appId: number }) {
           {/* Counterarguments */}
           {data.counterargument_prep?.length > 0 && (
             <div className="space-y-2">
-              <p className="text-xs font-semibold text-slate-500">Counter Objections</p>
+              <p className="text-xs font-semibold text-slate-600">Counter Objections</p>
               {data.counterargument_prep.map((c: any, i: number) => (
                 <div key={i} className="bg-amber-50 border border-amber-200 rounded-lg p-2.5 space-y-1">
                   <p className="text-xs text-amber-700 font-medium">"{c.objection}"</p>
@@ -686,7 +702,7 @@ function SalaryCoachPanel({ appId }: { appId: number }) {
       )}
 
       {!data && !loading && (
-        <p className="text-xs text-slate-400">
+        <p className="text-xs text-slate-500">
           Enter an offer amount (optional) then click Analyze to get salary benchmarks and negotiation coaching.
         </p>
       )}
@@ -831,7 +847,7 @@ function ApplicationDetailModal({
                     </p>
                     <ul className="space-y-1">
                       {ats.recommendations.map((rec, i) => (
-                        <li key={i} className="text-xs text-slate-600 flex items-start gap-1.5">
+                        <li key={i} className="text-xs text-slate-700 flex items-start gap-1.5">
                           <span className="w-1 h-1 rounded-full bg-blue-400 mt-1.5 flex-shrink-0" />
                           {rec}
                         </li>
@@ -866,7 +882,7 @@ function ApplicationDetailModal({
                     setSnapped(true)
                     setTimeout(() => setSnapped(false), 2000)
                   }}
-                  className="text-xs px-3 py-1.5 bg-slate-600 hover:bg-slate-500 rounded-lg text-slate-300 transition-colors"
+                  className="text-xs px-3 py-1.5 bg-slate-100 hover:bg-slate-200 rounded-lg text-slate-700 font-medium transition-colors"
                 >
                   {snapped ? 'Saved' : 'Save Version'}
                 </button>
@@ -874,7 +890,7 @@ function ApplicationDetailModal({
                   onClick={async () => {
                     setDlResume(true)
                     try { await downloadPdf(application.tailored_resume!, `${application.company}_${application.job_title}_Resume`) }
-                    catch { alert('Failed to download PDF') }
+                    catch (e) { console.error('PDF download failed', e) }
                     finally { setDlResume(false) }
                   }}
                   disabled={dlResume}
@@ -898,7 +914,7 @@ function ApplicationDetailModal({
                   onClick={async () => {
                     setDlLetter(true)
                     try { await downloadPdf(application.cover_letter!, `${application.company}_${application.job_title}_CoverLetter`) }
-                    catch { alert('Failed to download PDF') }
+                    catch (e) { console.error('PDF download failed', e) }
                     finally { setDlLetter(false) }
                   }}
                   disabled={dlLetter}
@@ -937,7 +953,7 @@ function ApplicationDetailModal({
 function DetailSection({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <div>
-      <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">{title}</h3>
+      <h3 className="text-xs font-semibold text-slate-600 uppercase tracking-wider mb-2">{title}</h3>
       <div className="bg-slate-50 border border-slate-200 rounded-lg p-3">
         {children}
       </div>
@@ -959,10 +975,11 @@ function ApplicationCard({
 }) {
   const [showStatusMenu, setShowStatusMenu] = useState(false)
   const [deleting, setDeleting] = useState(false)
+  const [confirmDelete, setConfirmDelete] = useState(false)
   const cfg = STATUS_CONFIG[app.status]
 
   const handleDelete = async () => {
-    if (!confirm(`Delete application for "${app.job_title}" at ${app.company}?`)) return
+    if (!confirmDelete) { setConfirmDelete(true); return }
     setDeleting(true)
     onDelete(app.id)
   }
@@ -1068,14 +1085,33 @@ function ApplicationCard({
           )}
         </div>
 
-        <button
-          onClick={handleDelete}
-          disabled={deleting}
-          className="ml-auto flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-red-600 bg-red-50 hover:bg-red-100 rounded-lg transition-colors disabled:opacity-50"
-        >
-          {deleting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
-          Delete
-        </button>
+        {confirmDelete ? (
+          <div className="ml-auto flex items-center gap-2">
+            <span className="text-xs text-red-600 font-medium">Sure?</span>
+            <button
+              onClick={handleDelete}
+              disabled={deleting}
+              className="flex items-center gap-1 px-2.5 py-1.5 text-xs font-medium text-white bg-red-600 hover:bg-red-700 rounded-lg transition-colors disabled:opacity-50"
+            >
+              {deleting ? <Loader2 className="w-3 h-3 animate-spin" /> : null}
+              Yes, delete
+            </button>
+            <button
+              onClick={() => setConfirmDelete(false)}
+              className="px-2.5 py-1.5 text-xs font-medium text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors"
+            >
+              Cancel
+            </button>
+          </div>
+        ) : (
+          <button
+            onClick={handleDelete}
+            className="ml-auto flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-red-600 bg-red-50 hover:bg-red-100 rounded-lg transition-colors"
+          >
+            <Trash2 className="w-3.5 h-3.5" />
+            Delete
+          </button>
+        )}
       </div>
     </div>
   )
@@ -1140,7 +1176,7 @@ export default function Dashboard() {
       await updateApplication(id, { status })
       setApplications(prev => prev.map(a => a.id === id ? { ...a, status } : a))
     } catch {
-      alert('Failed to update status.')
+      setError('Failed to update status. Please try again.')
     }
   }
 
@@ -1149,7 +1185,7 @@ export default function Dashboard() {
       await deleteApplication(id)
       setApplications(prev => prev.filter(a => a.id !== id))
     } catch {
-      alert('Failed to delete application.')
+      setError('Failed to delete application. Please try again.')
     }
   }
 

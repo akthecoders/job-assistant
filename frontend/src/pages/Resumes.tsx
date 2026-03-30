@@ -54,10 +54,12 @@ function ResumeFormModal({
       const r = await fetch(`${BASE}/resumes/parse-pdf`, { method: 'POST', body: fd })
       if (!r.ok) { const j = await r.json().catch(() => ({})); throw new Error(j.detail ?? 'Failed to parse PDF') }
       const { text, pdf_b64 } = await r.json()
-      // Auto-fill name from filename if empty
+      // Try to detect person's name from first short capitalised line of parsed text
+      const firstLine = (text as string).split('\n').map((l: string) => l.trim()).find((l: string) => l.length > 1 && l.length < 60)
+      const nameFromContent = firstLine && /^[A-Z][a-zA-Z]/.test(firstLine) ? firstLine : null
       const nameFromFile = file.name.replace(/\.pdf$/i, '').replace(/[_-]/g, ' ')
       setPdfB64(pdf_b64 ?? null)
-      setForm(f => ({ ...f, content: text, name: f.name || nameFromFile }))
+      setForm(f => ({ ...f, content: text, name: f.name || nameFromContent || nameFromFile }))
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to parse PDF')
     } finally { setParsing(false) }
@@ -200,11 +202,11 @@ function ResumeFormModal({
             </div>
 
             <div className="space-y-1">
-              <label className="block text-xs font-medium text-slate-400">Resume Type</label>
+              <label className="block text-xs font-medium text-slate-600">Resume Type</label>
               <select
                 value={resumeType}
                 onChange={e => setResumeType(e.target.value)}
-                className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200 focus:outline-none focus:border-blue-500"
+                className="w-full bg-white border border-slate-300 rounded-lg px-3 py-2 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               >
                 <option value="general">General</option>
                 <option value="engineering">Engineering</option>
@@ -333,7 +335,7 @@ function ResumeCard({ resume, onView, onEdit, onSetDefault, onDelete }: {
         </div>
         <div className="flex items-center gap-1.5 flex-shrink-0">
           {resume.resume_type && resume.resume_type !== 'general' && (
-            <span className="text-[10px] px-2 py-0.5 rounded-full bg-violet-500/20 text-violet-300 border border-violet-500/30 capitalize">
+            <span className="text-xs px-2 py-0.5 rounded-full bg-violet-100 text-violet-700 border border-violet-200 capitalize font-medium">
               {resume.resume_type}
             </span>
           )}
