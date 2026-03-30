@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AI Job Assistant</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      width: 280px;
+      padding: 16px;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+      background: #0f172a;
+      color: #f1f5f9;
+    }
+
+    .header {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 14px;
+    }
+
+    .header-icon {
+      width: 28px;
+      height: 28px;
+      background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+      border-radius: 6px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 14px;
+    }
+
+    h2 {
+      font-size: 15px;
+      font-weight: 600;
+      color: #f1f5f9;
+    }
+
+    .version {
+      font-size: 10px;
+      color: #475569;
+      margin-left: auto;
+    }
+
+    .divider {
+      height: 1px;
+      background: #1e293b;
+      margin-bottom: 14px;
+    }
+
+    button {
+      width: 100%;
+      padding: 10px 14px;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      margin-bottom: 8px;
+      font-size: 13px;
+      font-weight: 500;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      transition: all 0.15s ease;
+    }
+
+    button:active {
+      transform: scale(0.98);
+    }
+
+    button:last-of-type {
+      margin-bottom: 0;
+    }
+
+    .primary {
+      background: linear-gradient(135deg, #3b82f6, #2563eb);
+      color: white;
+      box-shadow: 0 1px 3px rgba(59, 130, 246, 0.4);
+    }
+
+    .primary:hover {
+      background: linear-gradient(135deg, #2563eb, #1d4ed8);
+    }
+
+    .secondary {
+      background: #1e293b;
+      color: #cbd5e1;
+      border: 1px solid #334155;
+    }
+
+    .secondary:hover {
+      background: #334155;
+      color: #f1f5f9;
+    }
+
+    .btn-icon {
+      font-size: 15px;
+      flex-shrink: 0;
+    }
+
+    .hint {
+      font-size: 11px;
+      color: #475569;
+      margin-top: 12px;
+      line-height: 1.5;
+      padding: 8px 10px;
+      background: #0f172a;
+      border: 1px solid #1e293b;
+      border-radius: 6px;
+    }
+
+    .hint strong {
+      color: #94a3b8;
+    }
+
+    .sites {
+      margin-top: 6px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 4px;
+    }
+
+    .site-chip {
+      font-size: 10px;
+      padding: 2px 6px;
+      background: #1e293b;
+      border-radius: 4px;
+      color: #64748b;
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <div class="header-icon">&#129302;</div>
+    <h2>AI Job Assistant</h2>
+    <span class="version">v0.1.0</span>
+  </div>
+
+  <div class="divider"></div>
+
+  <button class="primary" id="openPanel">
+    <span class="btn-icon">&#9001;</span>
+    Open Side Panel
+  </button>
+
+  <button class="secondary" id="openDashboard">
+    <span class="btn-icon">&#128203;</span>
+    Open Dashboard
+  </button>
+
+  <div class="hint">
+    <strong>Supported job boards:</strong>
+    <div class="sites">
+      <span class="site-chip">LinkedIn</span>
+      <span class="site-chip">Indeed</span>
+      <span class="site-chip">Glassdoor</span>
+      <span class="site-chip">ZipRecruiter</span>
+      <span class="site-chip">Monster</span>
+    </div>
+  </div>
+
+  <script type="module" src="popup.ts"></script>
+</body>
+</html>

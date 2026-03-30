@@ -1,0 +1,50 @@
+{
+  "manifest_version": 3,
+  "name": "AI Job Assistant",
+  "version": "0.1.0",
+  "description": "Tailor your resume and generate cover letters for any job posting",
+  "permissions": ["sidePanel", "activeTab", "storage", "scripting"],
+  "host_permissions": [
+    "http://localhost:8000/*",
+    "*://www.linkedin.com/*",
+    "*://www.indeed.com/*",
+    "*://www.glassdoor.com/*",
+    "*://www.ziprecruiter.com/*",
+    "*://www.monster.com/*"
+  ],
+  "background": {
+    "service_worker": "background.js",
+    "type": "module"
+  },
+  "action": {
+    "default_popup": "popup.html",
+    "default_icon": {
+      "16": "assets/icon16.png",
+      "48": "assets/icon48.png",
+      "128": "assets/icon128.png"
+    }
+  },
+  "side_panel": {
+    "default_path": "sidepanel.html"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "*://www.linkedin.com/jobs/*",
+        "*://www.indeed.com/viewjob*",
+        "*://www.indeed.com/jobs*",
+        "*://www.glassdoor.com/job-listing/*",
+        "*://www.glassdoor.com/Jobs/*",
+        "*://www.ziprecruiter.com/jobs/*",
+        "*://www.monster.com/job-openings/*"
+      ],
+      "js": ["content.js"],
+      "run_at": "document_idle"
+    }
+  ],
+  "icons": {
+    "16": "assets/icon16.png",
+    "48": "assets/icon48.png",
+    "128": "assets/icon128.png"
+  }
+}

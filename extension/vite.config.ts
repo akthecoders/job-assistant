@@ -1,0 +1,64 @@
+import { defineConfig } from 'vite'
+import react from '@vitejs/plugin-react'
+import { resolve } from 'path'
+import { copyFileSync, mkdirSync, existsSync, readdirSync } from 'fs'
+
+// Plugin that copies manifest.json, assets/, and flattens HTML output
+function chromeExtensionPlugin() {
+  return {
+    name: 'chrome-extension',
+    closeBundle() {
+      const root = __dirname
+      const dist = resolve(root, 'dist')
+
+      // Copy manifest.json
+      copyFileSync(resolve(root, 'manifest.json'), resolve(dist, 'manifest.json'))
+
+      // Copy assets (icons etc.) if they exist
+      const assetsDir = resolve(root, 'assets')
+      const distAssetsDir = resolve(dist, 'assets')
+      if (!existsSync(distAssetsDir)) mkdirSync(distAssetsDir, { recursive: true })
+      if (existsSync(assetsDir)) {
+        for (const file of readdirSync(assetsDir)) {
+          copyFileSync(resolve(assetsDir, file), resolve(distAssetsDir, file))
+        }
+      }
+
+      // Flatten HTML files from dist/src/** to dist/
+      const htmlMappings: Array<[string, string]> = [
+        [resolve(dist, 'src/popup/popup.html'), resolve(dist, 'popup.html')],
+        [resolve(dist, 'src/sidepanel/sidepanel.html'), resolve(dist, 'sidepanel.html')],
+      ]
+      for (const [src, dest] of htmlMappings) {
+        if (existsSync(src)) {
+          copyFileSync(src, dest)
+          console.log(`[chrome-ext] Copied ${src} -> ${dest}`)
+        }
+      }
+
+      console.log('[chrome-ext] manifest.json and assets copied to dist/')
+    },
+  }
+}
+
+export default defineConfig({
+  plugins: [react(), chromeExtensionPlugin()],
+  base: './',
+  build: {
+    outDir: 'dist',
+    emptyOutDir: true,
+    rollupOptions: {
+      input: {
+        background: resolve(__dirname, 'src/background.ts'),
+        content: resolve(__dirname, 'src/content/extractor.ts'),
+        sidepanel: resolve(__dirname, 'src/sidepanel/sidepanel.html'),
+        popup: resolve(__dirname, 'src/popup/popup.html'),
+      },
+      output: {
+        entryFileNames: '[name].js',
+        chunkFileNames: 'chunks/[name]-[hash].js',
+        assetFileNames: 'assets/[name].[ext]',
+      },
+    },
+  },
+})

@@ -1,0 +1,106 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Side Panel Custom Styles */
+
+/* Scrollbar styling */
+::-webkit-scrollbar {
+  width: 4px;
+  height: 4px;
+}
+
+::-webkit-scrollbar-track {
+  background: #1e293b;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #475569;
+  border-radius: 2px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #64748b;
+}
+
+/* Smooth transitions */
+* {
+  transition-property: color, background-color, border-color, box-shadow;
+  transition-duration: 150ms;
+  transition-timing-function: ease;
+}
+
+/* Tab active indicator animation */
+.tab-indicator {
+  transition: transform 200ms ease, width 200ms ease;
+}
+
+/* Score circle animation */
+@keyframes scoreReveal {
+  from {
+    stroke-dashoffset: 283;
+  }
+}
+
+.score-circle {
+  animation: scoreReveal 1s ease-out forwards;
+}
+
+/* Chip entrance animation */
+@keyframes chipFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.chip-animate {
+  animation: chipFadeIn 0.2s ease-out both;
+}
+
+/* Cover letter / resume text area */
+.content-area {
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-size: 11.5px;
+  line-height: 1.6;
+  font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', 'Consolas', monospace;
+}
+
+/* Pulse animation for connection indicator */
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+
+.pulse {
+  animation: pulse 2s ease-in-out infinite;
+}
+
+/* Loading spinner */
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.spinner {
+  animation: spin 0.8s linear infinite;
+}
+
+/* Button press effect */
+button:active:not(:disabled) {
+  transform: scale(0.97);
+}
+
+/* Copy success flash */
+@keyframes copyFlash {
+  0% { background-color: #16a34a; }
+  100% { background-color: inherit; }
+}
+
+.copy-success {
+  animation: copyFlash 0.6s ease-out;
+}
