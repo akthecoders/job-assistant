@@ -573,6 +573,127 @@ function EmailDraftsPanel({ appId }: { appId: number; jobTitle: string; company:
   )
 }
 
+// --- Salary Coach Panel ---
+function SalaryCoachPanel({ appId }: { appId: number }) {
+  const [data, setData] = useState<any>(null)
+  const [loading, setLoading] = useState(false)
+  const [offerAmount, setOfferAmount] = useState('')
+  const [showScript, setShowScript] = useState(false)
+
+  useEffect(() => {
+    fetch(`/api/salary/${appId}`)
+      .then(r => r.json())
+      .then(d => { if (d.range_mid) setData(d) })
+      .catch(() => {})
+  }, [appId])
+
+  const generate = async () => {
+    setLoading(true)
+    try {
+      const r = await fetch(`/api/salary/${appId}/generate`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ offer_amount: offerAmount ? parseInt(offerAmount) : null }),
+      })
+      if (r.ok) setData(await r.json())
+    } finally { setLoading(false) }
+  }
+
+  const fmt = (n: number) => n > 0 ? `$${(n / 1000).toFixed(0)}k` : '—'
+
+  return (
+    <div className="space-y-3">
+      <div className="flex gap-2">
+        <input
+          value={offerAmount}
+          onChange={e => setOfferAmount(e.target.value)}
+          placeholder="Offer amount (optional)"
+          type="number"
+          className="flex-1 border border-slate-300 rounded-lg px-3 py-1.5 text-xs text-slate-700 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white"
+        />
+        <button
+          onClick={generate}
+          disabled={loading}
+          className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-50 rounded-lg transition-colors shrink-0"
+        >
+          {loading && <Loader2 className="w-3 h-3 animate-spin" />}
+          {loading ? 'Analyzing…' : data ? 'Re-run' : 'Analyze'}
+        </button>
+      </div>
+
+      {data && (
+        <div className="space-y-3">
+          {/* Salary range bar */}
+          <div className="bg-slate-50 border border-slate-200 rounded-lg p-3 space-y-2">
+            <div className="flex justify-between text-xs text-slate-500">
+              <span>{fmt(data.range_low)}</span>
+              <span className="text-slate-700 font-semibold">{fmt(data.range_mid)} mid</span>
+              <span>{fmt(data.range_high)}</span>
+            </div>
+            <div className="relative h-2.5 bg-slate-200 rounded-full overflow-hidden">
+              <div
+                className="absolute inset-y-0 bg-gradient-to-r from-blue-500 to-emerald-500 rounded-full"
+                style={{ left: '10%', right: '10%' }}
+              />
+              <div className="absolute inset-y-0 w-0.5 bg-white" style={{ left: '50%' }} />
+            </div>
+            {data.range_note && (
+              <p className="text-[10px] text-slate-400">{data.range_note}</p>
+            )}
+          </div>
+
+          {/* Key leverage points */}
+          {data.key_leverage_points?.length > 0 && (
+            <div>
+              <p className="text-xs font-semibold text-slate-500 mb-1.5">Your Leverage</p>
+              <ul className="space-y-1">
+                {data.key_leverage_points.map((p: string, i: number) => (
+                  <li key={i} className="text-xs text-slate-600 flex items-start gap-1.5">
+                    <CheckCircle className="w-3 h-3 text-emerald-500 flex-shrink-0 mt-0.5" />
+                    {p}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+
+          {/* Negotiation script toggle */}
+          <button
+            onClick={() => setShowScript(s => !s)}
+            className="w-full py-1.5 bg-slate-100 hover:bg-slate-200 rounded-lg text-xs text-slate-600 transition-colors border border-slate-200"
+          >
+            {showScript ? '▲ Hide Negotiation Script' : '▼ Show Negotiation Script'}
+          </button>
+          {showScript && data.negotiation_script && (
+            <div className="bg-slate-50 border border-slate-200 rounded-lg p-3">
+              <p className="text-xs text-slate-700 whitespace-pre-wrap leading-relaxed">{data.negotiation_script}</p>
+            </div>
+          )}
+
+          {/* Counterarguments */}
+          {data.counterargument_prep?.length > 0 && (
+            <div className="space-y-2">
+              <p className="text-xs font-semibold text-slate-500">Counter Objections</p>
+              {data.counterargument_prep.map((c: any, i: number) => (
+                <div key={i} className="bg-amber-50 border border-amber-200 rounded-lg p-2.5 space-y-1">
+                  <p className="text-xs text-amber-700 font-medium">"{c.objection}"</p>
+                  <p className="text-xs text-slate-600">→ {c.response}</p>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {!data && !loading && (
+        <p className="text-xs text-slate-400">
+          Enter an offer amount (optional) then click Analyze to get salary benchmarks and negotiation coaching.
+        </p>
+      )}
+    </div>
+  )
+}
+
 // --- Application Detail Modal ---
 async function downloadPdf(text: string, filename: string) {
   const r = await fetch('/api/resumes/download-pdf', {
@@ -596,6 +717,7 @@ function ApplicationDetailModal({
 }) {
   const [dlResume, setDlResume] = useState(false)
   const [dlLetter, setDlLetter] = useState(false)
+  const [snapped, setSnapped] = useState(false)
   const cfg = STATUS_CONFIG[application.status]
   const ats = application.ats_details as ATSDetails | undefined
 
@@ -733,7 +855,21 @@ function ApplicationDetailModal({
           {/* Tailored Resume */}
           {application.tailored_resume && (
             <DetailSection title="Tailored Resume">
-              <div className="flex justify-end mb-2">
+              <div className="flex justify-end gap-2 mb-2">
+                <button
+                  onClick={async () => {
+                    await fetch(`/api/versions/${application.id}/snapshot`, {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({}),
+                    })
+                    setSnapped(true)
+                    setTimeout(() => setSnapped(false), 2000)
+                  }}
+                  className="text-xs px-3 py-1.5 bg-slate-600 hover:bg-slate-500 rounded-lg text-slate-300 transition-colors"
+                >
+                  {snapped ? 'Saved' : 'Save Version'}
+                </button>
                 <button
                   onClick={async () => {
                     setDlResume(true)
@@ -786,6 +922,11 @@ function ApplicationDetailModal({
           {/* Email Drafts */}
           <DetailSection title="Email Drafts">
             <EmailDraftsPanel appId={application.id} jobTitle={application.job_title} company={application.company} />
+          </DetailSection>
+
+          {/* Salary Coach */}
+          <DetailSection title="Salary Coach">
+            <SalaryCoachPanel appId={application.id} />
           </DetailSection>
         </div>
       </div>

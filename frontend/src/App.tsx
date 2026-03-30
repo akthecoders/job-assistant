@@ -1,12 +1,14 @@
 import { useEffect, useState } from 'react'
 import { Routes, Route, NavLink } from 'react-router-dom'
-import { Briefcase, LayoutDashboard, FileText, Settings as SettingsIcon, Wifi, WifiOff, MessageSquare, BarChart2 } from 'lucide-react'
+import { Briefcase, LayoutDashboard, FileText, Settings as SettingsIcon, Wifi, WifiOff, MessageSquare, BarChart2, GitBranch, Linkedin } from 'lucide-react'
 import { getAIHealth } from './api'
 import Dashboard from './pages/Dashboard'
 import Resumes from './pages/Resumes'
 import Settings from './pages/Settings'
 import InterviewPrep from './pages/InterviewPrep'
 import Analytics from './pages/Analytics'
+import ResumeVersions from './pages/ResumeVersions'
+import LinkedInOptimizer from './pages/LinkedInOptimizer'
 
 type ConnectionStatus = 'checking' | 'connected' | 'disconnected'
 
@@ -75,6 +77,14 @@ export default function App() {
             <BarChart2 className="w-4 h-4 flex-shrink-0" />
             Analytics
           </NavLink>
+          <NavLink to="/versions" className={navLinkClass}>
+            <GitBranch className="w-4 h-4 flex-shrink-0" />
+            Versions
+          </NavLink>
+          <NavLink to="/linkedin" className={navLinkClass}>
+            <Linkedin className="w-4 h-4 flex-shrink-0" />
+            LinkedIn
+          </NavLink>
           <NavLink to="/settings" className={navLinkClass}>
             <SettingsIcon className="w-4 h-4 flex-shrink-0" />
             Settings
@@ -115,6 +125,8 @@ export default function App() {
           <Route path="/resumes" element={<Resumes />} />
           <Route path="/interview" element={<InterviewPrep />} />
           <Route path="/analytics" element={<Analytics />} />
+          <Route path="/versions" element={<ResumeVersions />} />
+          <Route path="/linkedin" element={<LinkedInOptimizer />} />
           <Route path="/settings" element={<Settings />} />
         </Routes>
       </main>

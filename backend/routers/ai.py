@@ -13,7 +13,8 @@ router = APIRouter(prefix="/api/ai", tags=["ai"])
 
 class TailorResumeRequest(BaseModel):
     job_description: str
-    resume_id: int
+    resume_id: Optional[int] = None
+    resume_type: Optional[str] = None  # auto-select by type if resume_id not given
 
 
 class CoverLetterRequest(BaseModel):
@@ -38,12 +39,47 @@ async def _get_resume_content(db, resume_id: int) -> str:
     return row["content"]
 
 
+async def _resolve_resume_id(db, resume_id: int | None, resume_type: str | None) -> int:
+    """Resolve which resume to use. Priority: explicit ID > type match > default > first."""
+    if resume_id:
+        return resume_id
+
+    # Try to find by type
+    if resume_type:
+        async with db.execute(
+            "SELECT id FROM resumes WHERE resume_type = ? ORDER BY is_default DESC, created_at DESC LIMIT 1",
+            (resume_type,)
+        ) as cur:
+            row = await cur.fetchone()
+        if row:
+            return row["id"]
+
+    # Fall back to default
+    async with db.execute(
+        "SELECT id FROM resumes WHERE is_default = 1 LIMIT 1"
+    ) as cur:
+        row = await cur.fetchone()
+    if row:
+        return row["id"]
+
+    # Fall back to most recent
+    async with db.execute(
+        "SELECT id FROM resumes ORDER BY created_at DESC LIMIT 1"
+    ) as cur:
+        row = await cur.fetchone()
+    if row:
+        return row["id"]
+
+    raise HTTPException(404, "No resumes found")
+
+
 @router.post("/tailor-resume")
 async def tailor_resume_endpoint(req: TailorResumeRequest):
     if not req.job_description.strip():
         raise HTTPException(400, "job_description cannot be empty")
     async with get_db() as db:
-        resume_content = await _get_resume_content(db, req.resume_id)
+        resolved_resume_id = await _resolve_resume_id(db, req.resume_id, req.resume_type)
+        resume_content = await _get_resume_content(db, resolved_resume_id)
         if not resume_content.strip():
             raise HTTPException(422, "Resume has no content")
         provider = await AIProvider.from_db(db)

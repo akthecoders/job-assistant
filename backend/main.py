@@ -6,7 +6,7 @@ from pathlib import Path
 from contextlib import asynccontextmanager
 
 from database import init_db
-from routers import resumes, applications, ai, settings, fit, company, interview, outreach, emails, analytics
+from routers import resumes, applications, ai, settings, fit, company, interview, outreach, emails, analytics, versions, linkedin_optimizer, salary
 
 
 @asynccontextmanager
@@ -35,6 +35,9 @@ app.include_router(interview.router)
 app.include_router(outreach.router)
 app.include_router(emails.router)
 app.include_router(analytics.router)
+app.include_router(versions.router)
+app.include_router(linkedin_optimizer.router)
+app.include_router(salary.router)
 
 # Serve React dashboard build if it exists
 FRONTEND_DIST = Path(__file__).parent.parent / "frontend" / "dist"
