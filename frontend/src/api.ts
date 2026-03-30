@@ -28,7 +28,7 @@ export const listResumes = (): Promise<Resume[]> =>
 export const getResume = (id: number): Promise<Resume> =>
   fetch(`${BASE}/resumes/${id}`).then(r => handleResponse<Resume>(r))
 
-export const createResume = (data: { name: string; content: string; is_default?: boolean; pdf_b64?: string }): Promise<{ id: number }> =>
+export const createResume = (data: { name: string; content: string; is_default?: boolean; pdf_b64?: string; resume_type?: string }): Promise<{ id: number }> =>
   fetch(`${BASE}/resumes`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },

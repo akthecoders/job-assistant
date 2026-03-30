@@ -8,6 +8,8 @@ interface JobData {
   url: string
   source: string
   extractedAt: string
+  postedAt: string | null    // NEW
+  boardSignals: string[]     // NEW
 }
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
@@ -270,6 +272,29 @@ function extractGeneric(): Partial<JobData> {
 
 // ─── Main Extraction Logic ───────────────────────────────────────────────────
 
+function extractJsonLdJobPosting(): { postedAt: string | null; boardSignals: string[] } {
+  const scripts = Array.from(document.querySelectorAll('script[type="application/ld+json"]'))
+  for (const s of scripts) {
+    try {
+      const raw = JSON.parse(s.textContent || '{}')
+      const entries: any[] = Array.isArray(raw) ? raw : [raw]
+      for (const entry of entries) {
+        if (entry['@type'] === 'JobPosting') {
+          const boardSignals: string[] = []
+          if (entry.identifier?.name) boardSignals.push(String(entry.identifier.name))
+          return {
+            postedAt: entry.datePosted ? String(entry.datePosted) : null,
+            boardSignals,
+          }
+        }
+      }
+    } catch {
+      // malformed JSON-LD — skip
+    }
+  }
+  return { postedAt: null, boardSignals: [] }
+}
+
 function detectSite(): string {
   const host = window.location.hostname
   if (host.includes('linkedin.com')) return 'linkedin'
@@ -317,6 +342,8 @@ function extractJobData(): JobData | null {
     return null
   }
 
+  const ldData = extractJsonLdJobPosting()
+
   return {
     jobTitle: partial.jobTitle || '',
     company: partial.company || '',
@@ -325,6 +352,8 @@ function extractJobData(): JobData | null {
     url: window.location.href,
     source: partial.source || 'Unknown',
     extractedAt: new Date().toISOString(),
+    postedAt: ldData.postedAt,
+    boardSignals: ldData.boardSignals,
   }
 }
 

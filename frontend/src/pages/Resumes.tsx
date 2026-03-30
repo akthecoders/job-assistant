@@ -36,6 +36,7 @@ function ResumeFormModal({
   const [form, setForm] = useState<ResumeForm>(
     initial ? { name: initial.name, content: initial.content ?? '', is_default: !!initial.is_default } : DEFAULT_FORM
   )
+  const [resumeType, setResumeType] = useState(initial?.resume_type ?? 'general')
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
   const [parsing, setParsing] = useState(false)
@@ -94,7 +95,7 @@ function ResumeFormModal({
       if (initial) {
         await updateResume(initial.id, { name: form.name.trim(), content: form.content.trim(), is_default: form.is_default })
       } else {
-        await createResume({ name: form.name.trim(), content: form.content.trim(), is_default: form.is_default, pdf_b64: pdfB64 ?? undefined })
+        await createResume({ name: form.name.trim(), content: form.content.trim(), is_default: form.is_default, pdf_b64: pdfB64 ?? undefined, resume_type: resumeType })
       }
       onSaved()
     } catch { setError('Failed to save resume. Please try again.'); setSaving(false) }
@@ -196,6 +197,22 @@ function ResumeFormModal({
                 placeholder="Paste your resume content here, or drop a PDF above to auto-fill…"
                 className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none font-mono"
               />
+            </div>
+
+            <div className="space-y-1">
+              <label className="block text-xs font-medium text-slate-400">Resume Type</label>
+              <select
+                value={resumeType}
+                onChange={e => setResumeType(e.target.value)}
+                className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200 focus:outline-none focus:border-blue-500"
+              >
+                <option value="general">General</option>
+                <option value="engineering">Engineering</option>
+                <option value="product">Product</option>
+                <option value="design">Design</option>
+                <option value="marketing">Marketing</option>
+                <option value="management">Management</option>
+              </select>
             </div>
 
             <label className="flex items-center gap-2.5 cursor-pointer select-none">
@@ -314,11 +331,18 @@ function ResumeCard({ resume, onView, onEdit, onSetDefault, onDelete }: {
             </div>
           </div>
         </div>
-        {isDefault && (
-          <span className="inline-flex items-center gap-1 px-2 py-0.5 text-xs font-medium bg-yellow-50 text-yellow-700 border border-yellow-200 rounded-full flex-shrink-0">
-            <Star className="w-3 h-3 fill-yellow-500 text-yellow-500" />Default
-          </span>
-        )}
+        <div className="flex items-center gap-1.5 flex-shrink-0">
+          {resume.resume_type && resume.resume_type !== 'general' && (
+            <span className="text-[10px] px-2 py-0.5 rounded-full bg-violet-500/20 text-violet-300 border border-violet-500/30 capitalize">
+              {resume.resume_type}
+            </span>
+          )}
+          {isDefault && (
+            <span className="inline-flex items-center gap-1 px-2 py-0.5 text-xs font-medium bg-yellow-50 text-yellow-700 border border-yellow-200 rounded-full">
+              <Star className="w-3 h-3 fill-yellow-500 text-yellow-500" />Default
+            </span>
+          )}
+        </div>
       </div>
 
       {preview && (

@@ -11,6 +11,8 @@ export interface JobData {
   url: string
   source: string
   extractedAt: string
+  postedAt: string | null    // NEW
+  boardSignals: string[]     // NEW
 }
 
 export interface Resume {

@@ -4,6 +4,7 @@ export interface Resume {
   content?: string
   preview?: string
   is_default: number
+  resume_type?: string   // 'general'|'engineering'|'product'|'design'|'marketing'|'management'
   created_at: string
 }
 
