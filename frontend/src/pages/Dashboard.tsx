@@ -6,7 +6,7 @@ import {
 import {
   listApplications, createApplication, updateApplication, deleteApplication, getApplication
 } from '../api'
-import type { Application, ATSDetails } from '../types'
+import type { Application, ATSDetails, FitDetails } from '../types'
 
 type StatusFilter = 'all' | Application['status']
 
@@ -172,6 +172,407 @@ function AddApplicationModal({
   )
 }
 
+// --- Fit Score Panel ---
+function FitScorePanel({ appId }: { appId: number }) {
+  const [fit, setFit] = useState<FitDetails | null>(null)
+  const [loading, setLoading] = useState(false)
+  const [scored, setScored] = useState(false)
+
+  const runScore = async () => {
+    setLoading(true)
+    try {
+      const r = await fetch(`/api/fit/${appId}/score`, { method: 'POST' })
+      if (!r.ok) throw new Error('Failed')
+      const data: FitDetails = await r.json()
+      setFit(data)
+      setScored(true)
+    } catch { /* ignore */ } finally { setLoading(false) }
+  }
+
+  useEffect(() => {
+    fetch(`/api/fit/${appId}`)
+      .then(r => r.json())
+      .then((d: FitDetails | { fit_score: null; message: string }) => {
+        if (d.fit_score !== null && d.fit_score !== undefined) {
+          setFit(d as FitDetails)
+          setScored(true)
+        }
+      })
+      .catch(() => {})
+  }, [appId])
+
+  const score = fit?.fit_score ?? null
+  const scoreColor = score === null
+    ? 'text-slate-400'
+    : score >= 80 ? 'text-emerald-600'
+    : score >= 60 ? 'text-yellow-600'
+    : 'text-red-600'
+  const barColor = score === null
+    ? ''
+    : score >= 80 ? 'bg-emerald-500'
+    : score >= 60 ? 'bg-yellow-500'
+    : 'bg-red-500'
+
+  return (
+    <div className="space-y-3">
+      <div className="flex items-center justify-between">
+        <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Job Fit Score</h3>
+        <button
+          onClick={runScore}
+          disabled={loading}
+          className="flex items-center gap-1.5 text-xs px-3 py-1 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 rounded-lg text-white transition-colors font-medium"
+        >
+          {loading && <Loader2 className="w-3 h-3 animate-spin" />}
+          {loading ? 'Analyzing...' : scored ? 'Re-score' : 'Analyze Fit'}
+        </button>
+      </div>
+
+      {score !== null && (
+        <div className="flex items-center gap-3">
+          <span className={`text-3xl font-bold ${scoreColor}`}>{score}</span>
+          <span className="text-slate-400 text-sm">/ 100</span>
+          <div className="flex-1 h-2 bg-slate-200 rounded-full overflow-hidden">
+            <div
+              className={`h-full rounded-full transition-all duration-500 ${barColor}`}
+              style={{ width: `${score}%` }}
+            />
+          </div>
+        </div>
+      )}
+
+      {(fit?.met_requirements?.length ?? 0) > 0 && (
+        <div>
+          <p className="text-xs font-semibold text-emerald-700 mb-1.5 flex items-center gap-1">
+            <CheckCircle className="w-3.5 h-3.5" /> Met Requirements
+          </p>
+          <ul className="space-y-1">
+            {fit!.met_requirements.slice(0, 4).map((r, i) => (
+              <li key={i} className="text-xs text-slate-600 flex items-start gap-1.5">
+                <span className="w-1 h-1 rounded-full bg-emerald-400 mt-1.5 flex-shrink-0" />
+                {r}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      {(fit?.unmet_requirements?.length ?? 0) > 0 && (
+        <div>
+          <p className="text-xs font-semibold text-red-700 mb-1.5 flex items-center gap-1">
+            <XCircle className="w-3.5 h-3.5" /> Missing Requirements
+          </p>
+          <ul className="space-y-1">
+            {fit!.unmet_requirements.slice(0, 4).map((r, i) => (
+              <li key={i} className="text-xs text-slate-600 flex items-start gap-1.5">
+                <span className="w-1 h-1 rounded-full bg-red-400 mt-1.5 flex-shrink-0" />
+                {r}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      {(fit?.skills_gap?.length ?? 0) > 0 && (
+        <div>
+          <p className="text-xs font-semibold text-yellow-700 mb-1.5 flex items-center gap-1">
+            <AlertCircle className="w-3.5 h-3.5" /> Skills Gap
+          </p>
+          <div className="flex flex-wrap gap-1.5">
+            {fit!.skills_gap.map((skill, i) => (
+              <span key={i} className="px-2 py-0.5 text-xs bg-yellow-50 text-yellow-700 border border-yellow-200 rounded-full">
+                {skill}
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {(fit?.bridging_suggestions?.length ?? 0) > 0 && (
+        <div>
+          <p className="text-xs font-semibold text-blue-700 mb-1.5 flex items-center gap-1">
+            <AlertCircle className="w-3.5 h-3.5" /> Bridging Suggestions
+          </p>
+          <ul className="space-y-1">
+            {fit!.bridging_suggestions.map((s, i) => (
+              <li key={i} className="text-xs text-slate-600 flex items-start gap-1.5">
+                <span className="w-1 h-1 rounded-full bg-blue-400 mt-1.5 flex-shrink-0" />
+                {s}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      {!scored && !loading && (
+        <p className="text-xs text-slate-400">Click "Analyze Fit" to score this resume against the job description.</p>
+      )}
+    </div>
+  )
+}
+
+// --- Company Brief Card ---
+function CompanyBriefCard({ company, jobTitle }: { company: string; jobTitle: string }) {
+  const [brief, setBrief] = useState<any>(null)
+  const [loading, setLoading] = useState(false)
+
+  const load = async (bust = false) => {
+    setLoading(true)
+    try {
+      if (bust) {
+        await fetch(`/api/company/research/${encodeURIComponent(company)}`, { method: 'DELETE' })
+      }
+      const r = await fetch('/api/company/research', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ company_name: company, job_title: jobTitle }),
+      })
+      if (r.ok) setBrief(await r.json())
+    } catch { /* ignore */ } finally { setLoading(false) }
+  }
+
+  useEffect(() => {
+    // Try cache first, fall back to generating
+    fetch(`/api/company/research/${encodeURIComponent(company)}`)
+      .then(r => r.ok ? r.json() : null)
+      .then(d => { if (d) setBrief(d); else load() })
+      .catch(() => load())
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [company])
+
+  if (loading) return (
+    <div className="space-y-2">
+      <div className="flex items-center justify-between">
+        <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Company Intel</h3>
+      </div>
+      <p className="text-xs text-slate-400 animate-pulse">Researching {company}…</p>
+    </div>
+  )
+
+  if (!brief) return (
+    <div className="space-y-2">
+      <div className="flex items-center justify-between">
+        <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Company Intel</h3>
+        <button
+          onClick={() => load()}
+          className="text-xs px-3 py-1 bg-slate-100 hover:bg-slate-200 rounded-lg text-slate-600 transition-colors"
+        >
+          Research
+        </button>
+      </div>
+    </div>
+  )
+
+  return (
+    <div className="space-y-3">
+      <div className="flex items-center justify-between">
+        <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Company Intel</h3>
+        <button
+          onClick={() => load(true)}
+          className="text-xs text-slate-400 hover:text-slate-600 transition-colors"
+        >
+          ↻ Refresh
+        </button>
+      </div>
+
+      {/* Funding & headcount badges */}
+      <div className="flex flex-wrap gap-2">
+        {brief.funding_stage && brief.funding_stage !== 'Unknown' && (
+          <span className="text-xs px-2.5 py-1 bg-blue-50 text-blue-700 border border-blue-200 rounded-full">
+            {brief.funding_stage}
+          </span>
+        )}
+        {brief.headcount_trend && brief.headcount_trend !== 'Unknown' && (
+          <span className="text-xs px-2.5 py-1 bg-slate-100 text-slate-600 rounded-full">
+            {brief.headcount_trend}
+          </span>
+        )}
+      </div>
+
+      {/* Recent news */}
+      {brief.recent_news?.length > 0 && (
+        <div>
+          <p className="text-xs font-semibold text-slate-500 mb-1.5">Recent News</p>
+          <ul className="space-y-1.5">
+            {brief.recent_news.map((n: any, i: number) => (
+              <li key={i} className="text-xs text-slate-700">
+                <span className="text-slate-400">{n.date} — </span>{n.title}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      {/* Glassdoor sentiment */}
+      {brief.glassdoor_sentiment && brief.glassdoor_sentiment !== 'No data found' && (
+        <div>
+          <p className="text-xs font-semibold text-slate-500 mb-1">Employee Sentiment</p>
+          <p className="text-xs text-slate-700 leading-relaxed">{brief.glassdoor_sentiment}</p>
+        </div>
+      )}
+
+      {/* Interview patterns */}
+      {brief.interview_patterns?.length > 0 && (
+        <div>
+          <p className="text-xs font-semibold text-slate-500 mb-1.5">Interview Process</p>
+          <ul className="space-y-1">
+            {brief.interview_patterns.map((p: string, i: number) => (
+              <li key={i} className="text-xs text-slate-700 flex gap-2">
+                <span className="text-violet-500 flex-shrink-0">•</span>{p}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      {/* Tech stack (stored in raw_signals column) */}
+      {brief.raw_signals?.length > 0 && (
+        <div>
+          <p className="text-xs font-semibold text-slate-500 mb-1.5">Tech Stack</p>
+          <div className="flex flex-wrap gap-1.5">
+            {brief.raw_signals.map((t: string, i: number) => (
+              <span key={i} className="text-[10px] px-2 py-0.5 bg-slate-100 text-slate-500 rounded">
+                {t}
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+// --- Outreach Panel ---
+function OutreachPanel({ appId }: { appId: number }) {
+  const [type, setType] = useState<'linkedin' | 'cold_email'>('linkedin')
+  const [contactName, setContactName] = useState('')
+  const [contactTitle, setContactTitle] = useState('')
+  const [drafts, setDrafts] = useState<any[]>([])
+  const [loading, setLoading] = useState(false)
+  const [copied, setCopied] = useState<number | null>(null)
+
+  useEffect(() => {
+    fetch(`/api/outreach/${appId}`).then(r => r.json()).then(setDrafts).catch(() => {})
+  }, [appId])
+
+  const generate = async () => {
+    setLoading(true)
+    try {
+      const r = await fetch(`/api/outreach/${appId}/generate`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ outreach_type: type, contact_name: contactName, contact_title: contactTitle }),
+      })
+      if (r.ok) { const d = await r.json(); setDrafts(prev => [d, ...prev]) }
+    } finally { setLoading(false) }
+  }
+
+  const copy = (id: number, text: string) => {
+    navigator.clipboard.writeText(text)
+    setCopied(id)
+    setTimeout(() => setCopied(null), 2000)
+  }
+
+  return (
+    <div className="space-y-3">
+      <div className="flex gap-2">
+        {(['linkedin', 'cold_email'] as const).map(t => (
+          <button key={t} onClick={() => setType(t)}
+            className={`flex-1 text-xs py-1.5 rounded-lg border transition-colors ${type === t ? 'bg-blue-600 border-blue-500 text-white' : 'border-slate-300 text-slate-500 hover:border-slate-400'}`}>
+            {t === 'linkedin' ? 'LinkedIn Message' : 'Cold Email'}
+          </button>
+        ))}
+      </div>
+      <div className="grid grid-cols-2 gap-2">
+        <input value={contactName} onChange={e => setContactName(e.target.value)}
+          placeholder="Contact name (optional)"
+          className="bg-white border border-slate-300 rounded-lg px-3 py-1.5 text-xs text-slate-700 placeholder-slate-400 focus:outline-none focus:border-blue-500" />
+        <input value={contactTitle} onChange={e => setContactTitle(e.target.value)}
+          placeholder="Contact title (optional)"
+          className="bg-white border border-slate-300 rounded-lg px-3 py-1.5 text-xs text-slate-700 placeholder-slate-400 focus:outline-none focus:border-blue-500" />
+      </div>
+      <button onClick={generate} disabled={loading}
+        className="w-full py-2 bg-blue-600 hover:bg-blue-500 disabled:opacity-50 rounded-lg text-xs font-medium text-white transition-colors">
+        {loading ? 'Generating…' : '+ Generate Message'}
+      </button>
+      {drafts.map(d => (
+        <div key={d.id} className="bg-white border border-slate-200 rounded-lg p-3 space-y-2">
+          <div className="flex items-center justify-between">
+            <span className="text-[10px] text-slate-500 capitalize">{d.outreach_type === 'linkedin' ? 'LinkedIn' : 'Email'}</span>
+            <button onClick={() => copy(d.id, d.draft_text)}
+              className="text-[10px] px-2 py-0.5 rounded bg-slate-100 hover:bg-slate-200 text-slate-600 transition-colors">
+              {copied === d.id ? '✓ Copied' : 'Copy'}
+            </button>
+          </div>
+          <p className="text-xs text-slate-700 whitespace-pre-wrap leading-relaxed">{d.draft_text}</p>
+        </div>
+      ))}
+    </div>
+  )
+}
+
+// --- Email Drafts Panel ---
+function EmailDraftsPanel({ appId }: { appId: number; jobTitle: string; company: string }) {
+  const [drafts, setDrafts] = useState<any[]>([])
+  const [loading, setLoading] = useState<string | null>(null)
+  const [copied, setCopied] = useState<number | null>(null)
+
+  const EMAIL_TYPES = [
+    { key: 'cold_outreach', label: 'Cold Outreach' },
+    { key: 'followup_1w', label: 'Follow-up (1w)' },
+    { key: 'followup_2w', label: 'Follow-up (2w)' },
+    { key: 'thank_you', label: 'Thank You' },
+    { key: 'negotiation', label: 'Negotiation' },
+  ]
+
+  useEffect(() => {
+    fetch(`/api/emails/${appId}`).then(r => r.json()).then(setDrafts).catch(() => {})
+  }, [appId])
+
+  const generate = async (emailType: string) => {
+    setLoading(emailType)
+    try {
+      const r = await fetch(`/api/emails/${appId}/generate`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email_type: emailType }),
+      })
+      if (r.ok) { const d = await r.json(); setDrafts(prev => [d, ...prev]) }
+    } finally { setLoading(null) }
+  }
+
+  const copy = (id: number, subject: string, body: string) => {
+    navigator.clipboard.writeText(`Subject: ${subject}\n\n${body}`)
+    setCopied(id)
+    setTimeout(() => setCopied(null), 2000)
+  }
+
+  return (
+    <div className="space-y-3">
+      <div className="flex flex-wrap gap-2">
+        {EMAIL_TYPES.map(t => (
+          <button key={t.key} onClick={() => generate(t.key)} disabled={loading === t.key}
+            className="text-xs px-3 py-1.5 bg-slate-100 hover:bg-slate-200 disabled:opacity-50 rounded-lg text-slate-700 transition-colors border border-slate-200">
+            {loading === t.key ? '…' : `+ ${t.label}`}
+          </button>
+        ))}
+      </div>
+      {drafts.map(d => (
+        <div key={d.id} className="bg-white border border-slate-200 rounded-lg p-3 space-y-2">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-medium text-blue-600">{d.label || d.email_type}</span>
+            <button onClick={() => copy(d.id, d.subject, d.body)}
+              className="text-[10px] px-2 py-0.5 rounded bg-slate-100 hover:bg-slate-200 text-slate-600 transition-colors">
+              {copied === d.id ? '✓ Copied' : 'Copy'}
+            </button>
+          </div>
+          {d.subject && <p className="text-xs text-slate-500">Subject: {d.subject}</p>}
+          <p className="text-xs text-slate-700 whitespace-pre-wrap leading-relaxed">{d.body}</p>
+        </div>
+      ))}
+    </div>
+  )
+}
+
 // --- Application Detail Modal ---
 async function downloadPdf(text: string, filename: string) {
   const r = await fetch('/api/resumes/download-pdf', {
@@ -254,6 +655,18 @@ function ApplicationDetailModal({
           {application.notes && (
             <DetailSection title="Notes">
               <p className="text-sm text-slate-700 whitespace-pre-wrap">{application.notes}</p>
+            </DetailSection>
+          )}
+
+          {/* Job Fit Score */}
+          <DetailSection title="Job Fit">
+            <FitScorePanel appId={application.id} />
+          </DetailSection>
+
+          {/* Company Intel */}
+          {application.company && (
+            <DetailSection title="Company Intel">
+              <CompanyBriefCard company={application.company} jobTitle={application.job_title} />
             </DetailSection>
           )}
 
@@ -364,6 +777,16 @@ function ApplicationDetailModal({
               </pre>
             </DetailSection>
           )}
+
+          {/* Networking Outreach */}
+          <DetailSection title="Networking Outreach">
+            <OutreachPanel appId={application.id} />
+          </DetailSection>
+
+          {/* Email Drafts */}
+          <DetailSection title="Email Drafts">
+            <EmailDraftsPanel appId={application.id} jobTitle={application.job_title} company={application.company} />
+          </DetailSection>
         </div>
       </div>
     </ModalOverlay>
@@ -425,6 +848,15 @@ function ApplicationCard({
           <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold border ${ATS_COLOR(app.ats_score)}`}>
             <Target className="w-3 h-3" />
             {app.ats_score}% ATS
+          </span>
+        )}
+        {app.fit_score != null && (
+          <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold border ${
+            app.fit_score >= 80 ? 'text-emerald-700 bg-emerald-50 border-emerald-200'
+            : app.fit_score >= 60 ? 'text-yellow-700 bg-yellow-50 border-yellow-200'
+            : 'text-red-700 bg-red-50 border-red-200'
+          }`}>
+            Fit {app.fit_score}%
           </span>
         )}
         {app.applied_at && (

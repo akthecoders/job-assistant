@@ -20,6 +20,8 @@ export interface Application {
   cover_letter?: string
   ats_score?: number
   ats_details?: ATSDetails
+  fit_score?: number
+  fit_details?: FitDetails
   notes?: string
   applied_at?: string
   created_at: string
@@ -30,6 +32,14 @@ export interface ATSDetails {
   matched_keywords: string[]
   missing_keywords: string[]
   recommendations: string[]
+}
+
+export interface FitDetails {
+  fit_score: number
+  met_requirements: string[]
+  unmet_requirements: string[]
+  skills_gap: string[]
+  bridging_suggestions: string[]
 }
 
 export interface Settings {

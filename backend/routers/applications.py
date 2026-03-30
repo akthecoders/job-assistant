@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, BackgroundTasks
 from pydantic import BaseModel
 from typing import Optional
 import json
@@ -22,6 +22,8 @@ class ApplicationCreate(BaseModel):
     ats_details: Optional[dict] = None
     notes: Optional[str] = None
     applied_at: Optional[str] = None
+    posted_at: Optional[str] = None
+    board_signals: Optional[list[str]] = []
 
 
 class ApplicationUpdate(BaseModel):
@@ -78,7 +80,7 @@ async def get_application(app_id: int):
 
 
 @router.post("", status_code=201)
-async def create_application(payload: ApplicationCreate):
+async def create_application(payload: ApplicationCreate, background_tasks: BackgroundTasks):
     if payload.status not in VALID_STATUSES:
         raise HTTPException(400, f"status must be one of {VALID_STATUSES}")
     async with get_db() as db:
@@ -97,7 +99,76 @@ async def create_application(payload: ApplicationCreate):
         ) as cur:
             row = await cur.fetchone()
         await db.commit()
+
+    # Trigger company research in background (non-blocking)
+    if payload.company:
+        background_tasks.add_task(
+            _fetch_company_research_bg, payload.company, payload.job_title or ""
+        )
+
+    # Trigger ghost job analysis in background
+    background_tasks.add_task(
+        _run_ghost_analysis,
+        row[0],
+        payload.job_title,
+        payload.company,
+        payload.job_description or "",
+        getattr(payload, 'posted_at', None),
+        getattr(payload, 'board_signals', []) or [],
+    )
+
     return {"id": row[0]}
+
+
+async def _fetch_company_research_bg(company_name: str, job_title: str):
+    """Background task: fetch company research after application is saved."""
+    try:
+        from services.company_research import fetch_company_brief, is_stale
+        from services.ai_provider import AIProvider
+
+        # Check if we already have fresh data
+        async with get_db() as db:
+            async with db.execute(
+                "SELECT fetched_at FROM company_research WHERE company_name = ?",
+                (company_name,)
+            ) as cur:
+                row = await cur.fetchone()
+
+        if row and not is_stale(row["fetched_at"]):
+            return  # Cache is fresh, skip
+
+        async with get_db() as db:
+            provider = await AIProvider.from_db(db)
+
+        brief = await fetch_company_brief(provider, company_name, job_title)
+
+        async with get_db() as db:
+            await db.execute(
+                """INSERT INTO company_research
+                   (company_name, funding_stage, headcount_trend, recent_news,
+                    glassdoor_sentiment, interview_patterns, raw_signals)
+                   VALUES (?, ?, ?, ?, ?, ?, ?)
+                   ON CONFLICT(company_name) DO UPDATE SET
+                     funding_stage=excluded.funding_stage,
+                     headcount_trend=excluded.headcount_trend,
+                     recent_news=excluded.recent_news,
+                     glassdoor_sentiment=excluded.glassdoor_sentiment,
+                     interview_patterns=excluded.interview_patterns,
+                     raw_signals=excluded.raw_signals,
+                     fetched_at=datetime('now')""",
+                (
+                    company_name,
+                    brief.get("funding_stage"),
+                    brief.get("headcount_trend"),
+                    json.dumps(brief.get("recent_news", [])),
+                    brief.get("glassdoor_sentiment"),
+                    json.dumps(brief.get("interview_patterns", [])),
+                    json.dumps(brief.get("tech_stack", [])),
+                ),
+            )
+            await db.commit()
+    except Exception:
+        pass  # Background task — never crash the request
 
 
 @router.put("/{app_id}")
@@ -138,3 +209,56 @@ async def delete_application(app_id: int):
         await db.execute("DELETE FROM applications WHERE id = ?", (app_id,))
         await db.commit()
     return {"ok": True}
+
+
+async def _run_ghost_analysis(app_id: int, job_title: str, company: str,
+                               job_description: str, posted_at: str | None,
+                               board_signals: list[str]):
+    try:
+        from services.ghost_detector import analyze_posting, estimate_age_days
+        from services.ai_provider import AIProvider
+
+        async with get_db() as db:
+            provider = await AIProvider.from_db(db)
+
+        result = await analyze_posting(
+            provider, job_title, company, job_description or "",
+            posted_at, board_signals
+        )
+        age_days = estimate_age_days(posted_at)
+
+        async with get_db() as db:
+            await db.execute(
+                """UPDATE applications SET
+                   is_ghost_flag = ?,
+                   posting_age_days = ?
+                   WHERE id = ?""",
+                (1 if result.get("is_likely_ghost") else 0, age_days, app_id)
+            )
+            await db.commit()
+    except Exception:
+        pass
+
+
+@router.post("/{app_id}/analyze-ghost")
+async def analyze_ghost_posting(app_id: int, background_tasks: BackgroundTasks):
+    """Manually trigger ghost job analysis for an application."""
+    async with get_db() as db:
+        async with db.execute(
+            "SELECT job_title, company, job_description FROM applications WHERE id = ?",
+            (app_id,)
+        ) as cur:
+            row = await cur.fetchone()
+    if not row:
+        raise HTTPException(404, "Application not found")
+
+    background_tasks.add_task(
+        _run_ghost_analysis,
+        app_id,
+        row["job_title"],
+        row["company"],
+        row["job_description"] or "",
+        None,
+        [],
+    )
+    return {"ok": True, "message": "Ghost analysis started in background"}
