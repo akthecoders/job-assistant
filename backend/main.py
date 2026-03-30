@@ -1,3 +1,4 @@
+import asyncio
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
@@ -6,12 +7,24 @@ from pathlib import Path
 from contextlib import asynccontextmanager
 
 from database import init_db
-from routers import resumes, applications, ai, settings, fit, company, interview, outreach, emails, analytics, versions, linkedin_optimizer, salary
+from routers import resumes, applications, ai, settings, fit, company, interview, outreach, emails, analytics, versions, linkedin_optimizer, salary, autofill
+from routers import alerts
+from services.job_poller import run_due_alerts
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     await init_db()
+
+    async def scheduler_loop():
+        while True:
+            try:
+                await run_due_alerts()
+            except Exception as e:
+                print(f"[scheduler] error: {e}")
+            await asyncio.sleep(3600)  # check every hour
+
+    asyncio.create_task(scheduler_loop())
     yield
 
 
@@ -38,6 +51,8 @@ app.include_router(analytics.router)
 app.include_router(versions.router)
 app.include_router(linkedin_optimizer.router)
 app.include_router(salary.router)
+app.include_router(autofill.router)
+app.include_router(alerts.router)
 
 # Serve React dashboard build if it exists
 FRONTEND_DIST = Path(__file__).parent.parent / "frontend" / "dist"

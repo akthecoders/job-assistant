@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Routes, Route, NavLink } from 'react-router-dom'
-import { Briefcase, LayoutDashboard, FileText, Settings as SettingsIcon, Wifi, WifiOff, MessageSquare, BarChart2, GitBranch, Linkedin } from 'lucide-react'
+import { Briefcase, LayoutDashboard, FileText, Settings as SettingsIcon, Wifi, WifiOff, MessageSquare, BarChart2, GitBranch, Linkedin, Bell } from 'lucide-react'
 import { getAIHealth } from './api'
 import Dashboard from './pages/Dashboard'
 import Resumes from './pages/Resumes'
@@ -9,6 +9,7 @@ import InterviewPrep from './pages/InterviewPrep'
 import Analytics from './pages/Analytics'
 import ResumeVersions from './pages/ResumeVersions'
 import LinkedInOptimizer from './pages/LinkedInOptimizer'
+import JobAlerts from './pages/JobAlerts'
 
 type ConnectionStatus = 'checking' | 'connected' | 'disconnected'
 
@@ -85,6 +86,10 @@ export default function App() {
             <Linkedin className="w-4 h-4 flex-shrink-0" />
             LinkedIn
           </NavLink>
+          <NavLink to="/alerts" className={navLinkClass}>
+            <Bell className="w-4 h-4 flex-shrink-0" />
+            Alerts
+          </NavLink>
           <NavLink to="/settings" className={navLinkClass}>
             <SettingsIcon className="w-4 h-4 flex-shrink-0" />
             Settings
@@ -127,6 +132,7 @@ export default function App() {
           <Route path="/analytics" element={<Analytics />} />
           <Route path="/versions" element={<ResumeVersions />} />
           <Route path="/linkedin" element={<LinkedInOptimizer />} />
+          <Route path="/alerts" element={<JobAlerts />} />
           <Route path="/settings" element={<Settings />} />
         </Routes>
       </main>

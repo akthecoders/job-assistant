@@ -184,6 +184,18 @@ async def init_db():
             await db.execute("ALTER TABLE resumes ADD COLUMN resume_type TEXT DEFAULT 'general'")
         except Exception:
             pass
+        try:
+            await db.execute("ALTER TABLE job_alerts ADD COLUMN frequency TEXT DEFAULT 'daily'")
+        except Exception:
+            pass
+        try:
+            await db.execute("ALTER TABLE job_alert_results ADD COLUMN snippet TEXT")
+        except Exception:
+            pass
+        try:
+            await db.execute("ALTER TABLE job_alert_results ADD COLUMN found_at TEXT DEFAULT (datetime('now'))")
+        except Exception:
+            pass
         await db.commit()
 
 

@@ -51,6 +51,7 @@ export default defineConfig({
       input: {
         background: resolve(__dirname, 'src/background.ts'),
         content: resolve(__dirname, 'src/content/extractor.ts'),
+        autofill: resolve(__dirname, 'src/content/autofill.ts'),
         sidepanel: resolve(__dirname, 'src/sidepanel/sidepanel.html'),
         popup: resolve(__dirname, 'src/popup/popup.html'),
       },

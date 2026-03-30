@@ -12,6 +12,8 @@ interface Props {
   backendOk: boolean
 }
 
+const API = 'http://localhost:8000'
+
 const SOURCE_COLORS: Record<string, string> = {
   LinkedIn:    'bg-blue-500/15 text-blue-300 border-blue-500/20',
   Indeed:      'bg-violet-500/15 text-violet-300 border-violet-500/20',
@@ -22,12 +24,46 @@ const SOURCE_COLORS: Record<string, string> = {
 
 export default function JobInfo({ jobData, defaultResume, onTailorResume, onCoverLetter, onSaveApplication, isLoading, saved, backendOk }: Props) {
   const [descExpanded, setDescExpanded] = useState(false)
+  const [autofillToast, setAutofillToast] = useState<string | null>(null)
+  const [autofilling, setAutofilling] = useState(false)
   const previewLen = 280
   const hasMore = jobData.description.length > previewLen
   const sourceCls = SOURCE_COLORS[jobData.source] ?? 'bg-white/5 text-slate-400 border-white/10'
 
   const noResume = !defaultResume
   const canAct = backendOk && !isLoading && !noResume
+
+  const handleAutofill = async () => {
+    if (!backendOk || autofilling) return
+    setAutofilling(true)
+    setAutofillToast(null)
+    try {
+      const profileRes = await fetch(`${API}/api/autofill/profile`, {
+        signal: AbortSignal.timeout(5000),
+      })
+      if (!profileRes.ok) throw new Error(`Profile fetch failed: ${profileRes.status}`)
+      const profile = await profileRes.json()
+
+      const [tab] = await chrome.tabs.query({ active: true, currentWindow: true })
+      if (!tab?.id) {
+        setAutofillToast('No active tab found')
+        return
+      }
+
+      const response = await chrome.tabs.sendMessage(tab.id, {
+        type: 'AUTOFILL_FORM',
+        profile,
+      })
+
+      const count: number = response?.filled ?? 0
+      setAutofillToast(count > 0 ? `Filled ${count} field${count === 1 ? '' : 's'}` : 'No fillable fields found')
+    } catch (e) {
+      setAutofillToast('Autofill failed — check backend connection')
+    } finally {
+      setAutofilling(false)
+      setTimeout(() => setAutofillToast(null), 3500)
+    }
+  }
 
   return (
     <div className="p-3 space-y-2.5">
@@ -141,6 +177,31 @@ export default function JobInfo({ jobData, defaultResume, onTailorResume, onCove
       >
         {saved ? '✓ Saved to Tracker' : '🔖 Save to Tracker'}
       </button>
+
+      {/* ── Auto-fill Form ── */}
+      <button
+        onClick={handleAutofill}
+        disabled={!backendOk || autofilling}
+        className="w-full flex items-center justify-center gap-2 py-2.5 rounded-2xl text-[12px] font-medium transition-all border bg-transparent border-white/10 text-slate-400 hover:border-white/20 hover:text-slate-200 disabled:opacity-30"
+      >
+        {autofilling ? (
+          <div className="w-3.5 h-3.5 border-2 border-slate-500 border-t-slate-200 rounded-full animate-spin" />
+        ) : (
+          <span>⚡</span>
+        )}
+        {autofilling ? 'Filling…' : 'Auto-fill Form'}
+      </button>
+
+      {/* Autofill toast */}
+      {autofillToast && (
+        <div className={`w-full flex items-center justify-center gap-1.5 py-2 rounded-xl text-[11px] font-medium border ${
+          autofillToast.startsWith('Filled')
+            ? 'bg-emerald-950/40 border-emerald-800/40 text-emerald-400'
+            : 'bg-amber-950/40 border-amber-800/40 text-amber-400'
+        }`}>
+          {autofillToast.startsWith('Filled') ? '✓' : '⚠'} {autofillToast}
+        </div>
+      )}
 
       {/* ── Job description ── */}
       {jobData.description && (
