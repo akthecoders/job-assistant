@@ -5,7 +5,8 @@
   "description": "Tailor your resume and generate cover letters for any job posting",
   "permissions": ["sidePanel", "activeTab", "storage", "scripting"],
   "host_permissions": [
-    "http://localhost:8000/*",
+    "http://localhost/*",
+    "http://127.0.0.1/*",
     "*://www.linkedin.com/*",
     "*://www.indeed.com/*",
     "*://www.glassdoor.com/*",

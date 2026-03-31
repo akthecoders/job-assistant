@@ -41,7 +41,7 @@ INSERT OR IGNORE INTO settings (key, value) VALUES
     ('provider', '"ollama"'),
     ('ollama_url', '"http://localhost:11434"'),
     ('ollama_model', '"llama3.2"'),
-    ('anthropic_model', '"claude-3-5-haiku-20241022"'),
+    ('anthropic_model', '"claude-haiku-4-5-20251001"'),
     ('anthropic_api_key', '""');
 
 CREATE TABLE IF NOT EXISTS interview_questions (
@@ -194,6 +194,24 @@ async def init_db():
             pass
         try:
             await db.execute("ALTER TABLE job_alert_results ADD COLUMN found_at TEXT DEFAULT (datetime('now'))")
+        except Exception:
+            pass
+        # Fix stale Anthropic model names that no longer exist on the API
+        _REMOVED_MODELS = (
+            '"claude-3-5-haiku-20241022"',
+            '"claude-3-5-sonnet-20241022"',
+            '"claude-opus-4-5"',
+        )
+        try:
+            async with db.execute(
+                "SELECT value FROM settings WHERE key = 'anthropic_model'"
+            ) as cur:
+                row = await cur.fetchone()
+            if row and row[0] in _REMOVED_MODELS:
+                await db.execute(
+                    "UPDATE settings SET value = ? WHERE key = 'anthropic_model'",
+                    ('"claude-haiku-4-5-20251001"',),
+                )
         except Exception:
             pass
         await db.commit()

@@ -1,4 +1,23 @@
 // Popup script for AI Job Assistant
+import { getBackendUrl, setBackendUrl, DEFAULT_BACKEND_URL } from '../lib/config'
+
+const urlInput = document.getElementById('backendUrl') as HTMLInputElement
+const saveUrlBtn = document.getElementById('saveUrl') as HTMLButtonElement
+const urlStatus = document.getElementById('urlStatus') as HTMLSpanElement
+
+// Load saved URL on open
+getBackendUrl().then(url => {
+  urlInput.value = url
+  urlInput.placeholder = DEFAULT_BACKEND_URL
+})
+
+saveUrlBtn.addEventListener('click', async () => {
+  const url = urlInput.value.trim() || DEFAULT_BACKEND_URL
+  await setBackendUrl(url)
+  urlStatus.textContent = 'Saved!'
+  urlStatus.style.color = '#34d399'
+  setTimeout(() => { urlStatus.textContent = '' }, 2000)
+})
 
 document.getElementById('openPanel')!.addEventListener('click', async () => {
   try {
@@ -13,8 +32,9 @@ document.getElementById('openPanel')!.addEventListener('click', async () => {
   }
 })
 
-document.getElementById('openDashboard')!.addEventListener('click', () => {
-  chrome.tabs.create({ url: 'http://localhost:8000' })
+document.getElementById('openDashboard')!.addEventListener('click', async () => {
+  const url = await getBackendUrl()
+  chrome.tabs.create({ url })
   window.close()
 })
 

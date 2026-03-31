@@ -104,10 +104,75 @@
       flex-shrink: 0;
     }
 
+    .url-section {
+      margin-bottom: 8px;
+      padding: 10px;
+      background: #0f172a;
+      border: 1px solid #1e293b;
+      border-radius: 6px;
+    }
+
+    .url-label {
+      display: block;
+      font-size: 10px;
+      font-weight: 600;
+      color: #64748b;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-bottom: 6px;
+    }
+
+    .url-row {
+      display: flex;
+      gap: 6px;
+    }
+
+    .url-input {
+      flex: 1;
+      background: #1e293b;
+      border: 1px solid #334155;
+      border-radius: 5px;
+      padding: 5px 8px;
+      font-size: 11px;
+      color: #cbd5e1;
+      font-family: monospace;
+      min-width: 0;
+    }
+
+    .url-input:focus {
+      outline: none;
+      border-color: #3b82f6;
+    }
+
+    .save-url-btn {
+      width: auto;
+      padding: 5px 10px;
+      margin-bottom: 0;
+      font-size: 11px;
+      background: #1e293b;
+      color: #94a3b8;
+      border: 1px solid #334155;
+      border-radius: 5px;
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+
+    .save-url-btn:hover {
+      background: #334155;
+      color: #f1f5f9;
+    }
+
+    .url-status {
+      display: block;
+      font-size: 10px;
+      margin-top: 4px;
+      min-height: 14px;
+    }
+
     .hint {
       font-size: 11px;
       color: #475569;
-      margin-top: 12px;
+      margin-top: 0;
       line-height: 1.5;
       padding: 8px 10px;
       background: #0f172a;
@@ -153,6 +218,20 @@
     <span class="btn-icon">&#128203;</span>
     Open Dashboard
   </button>
+
+  <div class="url-section">
+    <label class="url-label">Backend URL</label>
+    <div class="url-row">
+      <input
+        type="url"
+        id="backendUrl"
+        placeholder="http://localhost:8000"
+        class="url-input"
+      />
+      <button id="saveUrl" class="save-url-btn">Save</button>
+    </div>
+    <span id="urlStatus" class="url-status"></span>
+  </div>
 
   <div class="hint">
     <strong>Supported job boards:</strong>

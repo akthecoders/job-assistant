@@ -2,6 +2,7 @@ import React, { useState } from 'react'
 import type { JobData, Resume } from '../App'
 
 interface Props {
+  apiBase: string
   jobData: JobData
   defaultResume: Resume | null
   onTailorResume: () => void
@@ -12,8 +13,6 @@ interface Props {
   backendOk: boolean
 }
 
-const API = 'http://localhost:8000'
-
 const SOURCE_COLORS: Record<string, string> = {
   LinkedIn:    'bg-blue-500/15 text-blue-300 border-blue-500/20',
   Indeed:      'bg-violet-500/15 text-violet-300 border-violet-500/20',
@@ -22,7 +21,7 @@ const SOURCE_COLORS: Record<string, string> = {
   Monster:     'bg-rose-500/15 text-rose-300 border-rose-500/20',
 }
 
-export default function JobInfo({ jobData, defaultResume, onTailorResume, onCoverLetter, onSaveApplication, isLoading, saved, backendOk }: Props) {
+export default function JobInfo({ apiBase, jobData, defaultResume, onTailorResume, onCoverLetter, onSaveApplication, isLoading, saved, backendOk }: Props) {
   const [descExpanded, setDescExpanded] = useState(false)
   const [autofillToast, setAutofillToast] = useState<string | null>(null)
   const [autofilling, setAutofilling] = useState(false)
@@ -38,7 +37,7 @@ export default function JobInfo({ jobData, defaultResume, onTailorResume, onCove
     setAutofilling(true)
     setAutofillToast(null)
     try {
-      const profileRes = await fetch(`${API}/api/autofill/profile`, {
+      const profileRes = await fetch(`${apiBase}/api/autofill/profile`, {
         signal: AbortSignal.timeout(5000),
       })
       if (!profileRes.ok) throw new Error(`Profile fetch failed: ${profileRes.status}`)
@@ -110,7 +109,7 @@ export default function JobInfo({ jobData, defaultResume, onTailorResume, onCove
               <p className="text-[10px] text-amber-600/80 mt-0.5">Add one in the dashboard first</p>
             </div>
             <button
-              onClick={() => chrome.tabs.create({ url: 'http://localhost:8000/resumes' })}
+              onClick={() => chrome.tabs.create({ url: `${apiBase}/resumes` })}
               className="text-[11px] text-amber-400 hover:text-amber-300 border border-amber-800 rounded-lg px-2.5 py-1 whitespace-nowrap"
             >
               Add Resume ↗
@@ -128,7 +127,7 @@ export default function JobInfo({ jobData, defaultResume, onTailorResume, onCove
               </div>
             </div>
             <button
-              onClick={() => chrome.tabs.create({ url: 'http://localhost:8000/resumes' })}
+              onClick={() => chrome.tabs.create({ url: `${apiBase}/resumes` })}
               className="text-[10px] text-slate-500 hover:text-slate-300 shrink-0 transition-colors"
             >
               Change ↗

@@ -1,51 +1,44 @@
-#!/bin/bash
-set -e
+#!/usr/bin/env bash
+# AI Job Assistant — Unix launcher (macOS / Linux)
+# Delegates all logic to start.py so this file stays tiny.
+set -euo pipefail
 
-ROOT="$(cd "$(dirname "$0")" && pwd)"
-BACKEND="$ROOT/backend"
-FRONTEND="$ROOT/frontend"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-echo "================================"
-echo "  AI Job Assistant"
-echo "================================"
+# ── Locate a usable Python 3.11+ interpreter ─────────────────────────────────
+find_python() {
+  # Prefer explicit version commands first, then fall back to generic python3/python
+  for cmd in python3.13 python3.12 python3.11 python3 python; do
+    if command -v "$cmd" &>/dev/null; then
+      ver=$("$cmd" -c "import sys; print(sys.version_info[:2])" 2>/dev/null || echo "(0, 0)")
+      # Accept 3.11 and above
+      if "$cmd" -c "import sys; sys.exit(0 if sys.version_info >= (3,11) else 1)" 2>/dev/null; then
+        echo "$cmd"
+        return 0
+      fi
+    fi
+  done
+  return 1
+}
 
-# Check Python
-if ! command -v python3 &>/dev/null; then
-  echo "ERROR: python3 is required"
+PYTHON=$(find_python 2>/dev/null) || true
+
+if [ -z "$PYTHON" ]; then
+  echo ""
+  echo "  ERROR: Python 3.11+ is required but was not found."
+  echo ""
+  if [[ "$OSTYPE" == "darwin"* ]]; then
+    echo "  macOS — install options:"
+    echo "    brew install python@3.13"
+    echo "    or download from https://python.org"
+  else
+    echo "  Linux — install options:"
+    echo "    sudo apt install python3.11   # Debian/Ubuntu"
+    echo "    sudo dnf install python3.11   # Fedora/RHEL"
+    echo "    or download from https://python.org"
+  fi
+  echo ""
   exit 1
 fi
 
-# Install backend deps if needed
-if [ ! -d "$BACKEND/.venv" ]; then
-  echo "Setting up Python virtual environment..."
-  python3 -m venv "$BACKEND/.venv"
-  source "$BACKEND/.venv/bin/activate"
-  pip install -q -r "$BACKEND/requirements.txt"
-  echo "Backend deps installed."
-else
-  source "$BACKEND/.venv/bin/activate"
-fi
-
-# Build frontend if dist doesn't exist or is stale
-if [ ! -d "$FRONTEND/dist" ]; then
-  echo "Building frontend..."
-  if ! command -v npm &>/dev/null; then
-    echo "WARNING: npm not found — skipping frontend build. Dashboard won't be served."
-  else
-    cd "$FRONTEND" && npm install -q && npm run build && cd "$ROOT"
-    echo "Frontend built."
-  fi
-fi
-
-echo ""
-echo "Starting server at http://localhost:8000"
-echo "Dashboard:  http://localhost:8000"
-echo "API docs:   http://localhost:8000/docs"
-echo ""
-echo "Chrome extension: Load /extension/dist as unpacked extension"
-echo ""
-echo "Press Ctrl+C to stop"
-echo "================================"
-
-cd "$BACKEND"
-uvicorn main:app --host 0.0.0.0 --port 8000 --reload
+exec "$PYTHON" "$SCRIPT_DIR/start.py" "$@"

@@ -357,14 +357,41 @@ function extractJobData(): JobData | null {
   }
 }
 
+// ─── Context validity guard ──────────────────────────────────────────────────
+// When the extension is reloaded/updated, chrome.runtime.id becomes undefined.
+// All runtime calls must go through this check so we fail silently instead of
+// throwing "Extension context invalidated" errors in the page console.
+
+function isContextAlive(): boolean {
+  try {
+    return !!chrome.runtime?.id
+  } catch {
+    return false
+  }
+}
+
+// Called once the context dies: disconnect all observers and restore history
+function teardown() {
+  try { observer.disconnect() } catch { /* already disconnected */ }
+  if (extractionTimer) { clearTimeout(extractionTimer); extractionTimer = null }
+  // Restore patched history methods so the page keeps working normally
+  try { history.pushState = originalPushState } catch { /* best effort */ }
+  try { history.replaceState = originalReplaceState } catch { /* best effort */ }
+}
+
 function sendJobData(data: JobData) {
-  chrome.runtime.sendMessage({ type: 'JOB_DATA_EXTRACTED', data }, (response) => {
-    if (chrome.runtime.lastError) {
-      console.warn('[AI Job Assistant] Error sending job data:', chrome.runtime.lastError.message)
-    } else {
-      console.log('[AI Job Assistant] Job data sent successfully:', response)
-    }
-  })
+  if (!isContextAlive()) return
+  try {
+    // Promise form (MV3 / Chrome 99+): no callback = no async callback that
+    // throws "Extension context invalidated" as an uncaught error.
+    // The previous approach of reading chrome.runtime.lastError inside a
+    // callback threw on a later microtask where the outer try/catch was gone.
+    chrome.runtime.sendMessage({ type: 'JOB_DATA_EXTRACTED', data }).catch(() => {
+      // Silently swallow — covers "no receiving end", context invalidated, etc.
+    })
+  } catch {
+    // sendMessage itself threw synchronously (context already dead at call time)
+  }
 }
 
 // ─── Extraction with Retry ───────────────────────────────────────────────────
@@ -374,8 +401,10 @@ let lastExtractedTitle = ''
 let extractionTimer: ReturnType<typeof setTimeout> | null = null
 
 function scheduleExtraction(delayMs = 1500) {
+  if (!isContextAlive()) { teardown(); return }
   if (extractionTimer) clearTimeout(extractionTimer)
   extractionTimer = setTimeout(() => {
+    if (!isContextAlive()) { teardown(); return }
     const data = extractJobData()
     if (data) {
       sendJobData(data)
@@ -391,9 +420,7 @@ scheduleExtraction(1500)
 
 // ─── MutationObserver for SPAs (LinkedIn) ───────────────────────────────────
 
-// Read current job title directly from DOM (fast, no full extraction)
 function peekJobTitle(): string {
-  // LinkedIn selectors most likely to reflect the currently-displayed job
   const selectors = [
     '.job-details-jobs-unified-top-card__job-title h1',
     'h1.t-24',
@@ -410,35 +437,35 @@ function peekJobTitle(): string {
 }
 
 const observer = new MutationObserver(() => {
+  if (!isContextAlive()) { teardown(); return }
   const urlChanged = window.location.href !== lastExtractedUrl
   const titleChanged = peekJobTitle() !== lastExtractedTitle && peekJobTitle() !== ''
-
   if (urlChanged || titleChanged) {
     scheduleExtraction(1000)
   }
 })
 
-observer.observe(document.body, {
-  childList: true,
-  subtree: true,
-})
+observer.observe(document.body, { childList: true, subtree: true })
 
 // ─── SPA Navigation Events ──────────────────────────────────────────────────
 
 window.addEventListener('popstate', () => {
+  if (!isContextAlive()) { teardown(); return }
   scheduleExtraction(800)
 })
 
-// Intercept pushState for LinkedIn SPA navigation
+// Save references BEFORE patching so teardown can restore them
 const originalPushState = history.pushState.bind(history)
 history.pushState = function (...args) {
   originalPushState(...args)
+  if (!isContextAlive()) { teardown(); return }
   scheduleExtraction(1000)
 }
 
 const originalReplaceState = history.replaceState.bind(history)
 history.replaceState = function (...args) {
   originalReplaceState(...args)
+  if (!isContextAlive()) { teardown(); return }
   if (window.location.href !== lastExtractedUrl) {
     scheduleExtraction(1000)
   }
@@ -446,11 +473,14 @@ history.replaceState = function (...args) {
 
 // ─── Listen for RE_EXTRACT message from background ──────────────────────────
 
-chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
-  if (message.type === 'RE_EXTRACT') {
-    scheduleExtraction(500)
-    sendResponse({ success: true })
-  }
-})
+if (isContextAlive()) {
+  chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
+    if (!isContextAlive()) return
+    if (message.type === 'RE_EXTRACT') {
+      scheduleExtraction(500)
+      sendResponse({ success: true })
+    }
+  })
+}
 
 export {}

@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useRef, useState } from 'react'
 import JobInfo from './components/JobInfo'
 import ResumeSection from './components/ResumeSection'
 import CoverLetterSection from './components/CoverLetterSection'
+import { DEFAULT_BACKEND_URL, getBackendUrl, setBackendUrl, onBackendUrlChanged } from '../lib/config'
 
 export interface JobData {
   jobTitle: string
@@ -43,9 +44,8 @@ export interface CoverLetterResult {
 
 type ActiveTab = 'job' | 'resume' | 'cover-letter'
 
-const API = 'http://localhost:8000'
-
 export default function App() {
+  const [apiBase, setApiBase] = useState(DEFAULT_BACKEND_URL)
   const [jobData, setJobData] = useState<JobData | null>(null)
   const [defaultResume, setDefaultResume] = useState<Resume | null>(null)
   const [tailoredResume, setTailoredResume] = useState<TailoredResumeResult | null>(null)
@@ -56,19 +56,38 @@ export default function App() {
   const [backendOk, setBackendOk] = useState(false)
   const [saved, setSaved] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [showUrlEdit, setShowUrlEdit] = useState(false)
+  const [urlDraft, setUrlDraft] = useState(DEFAULT_BACKEND_URL)
   const prevJobKey = useRef<string | null>(null)
+  const apiBaseRef = useRef(DEFAULT_BACKEND_URL)
+
+  // Keep ref in sync so callbacks always have the latest URL without re-creating
+  useEffect(() => { apiBaseRef.current = apiBase }, [apiBase])
+
+  // ── load + watch backend URL ─────────────────────────────────────────────
+  useEffect(() => {
+    getBackendUrl().then(url => {
+      setApiBase(url)
+      setUrlDraft(url)
+    })
+    const unsub = onBackendUrlChanged(url => {
+      setApiBase(url)
+      setUrlDraft(url)
+    })
+    return unsub
+  }, [])
 
   // ── health & resume load ─────────────────────────────────────────────────
   const checkHealth = useCallback(async () => {
     try {
-      const r = await fetch(`${API}/api/ai/health`, { signal: AbortSignal.timeout(3000) })
+      const r = await fetch(`${apiBaseRef.current}/api/ai/health`, { signal: AbortSignal.timeout(3000) })
       setBackendOk(r.ok)
     } catch { setBackendOk(false) }
   }, [])
 
   const loadDefaultResume = useCallback(async () => {
     try {
-      const r = await fetch(`${API}/api/resumes`, { signal: AbortSignal.timeout(5000) })
+      const r = await fetch(`${apiBaseRef.current}/api/resumes`, { signal: AbortSignal.timeout(5000) })
       if (!r.ok) return
       const list: Resume[] = await r.json()
       if (!list.length) return
@@ -120,7 +139,7 @@ export default function App() {
     if (!jobData || !defaultResume) return
     setIsLoading(true); setLoadingMsg('Tailoring resume…'); setError(null)
     try {
-      const r = await fetch(`${API}/api/ai/tailor-resume`, {
+      const r = await fetch(`${apiBaseRef.current}/api/ai/tailor-resume`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ resume_id: defaultResume.id, job_description: jobData.description }),
@@ -138,7 +157,7 @@ export default function App() {
     if (!jobData || !defaultResume) return
     setIsLoading(true); setLoadingMsg('Writing cover letter…'); setError(null)
     try {
-      const r = await fetch(`${API}/api/ai/cover-letter`, {
+      const r = await fetch(`${apiBaseRef.current}/api/ai/cover-letter`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -161,7 +180,7 @@ export default function App() {
     if (!jobData) return
     setIsLoading(true); setLoadingMsg('Saving…'); setError(null)
     try {
-      const r = await fetch(`${API}/api/applications`, {
+      const r = await fetch(`${apiBaseRef.current}/api/applications`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -187,7 +206,7 @@ export default function App() {
 
   const handleSaveToResumes = useCallback(async (name: string) => {
     if (!tailoredResume) return
-    const r = await fetch(`${API}/api/resumes`, {
+    const r = await fetch(`${apiBaseRef.current}/api/resumes`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ name, content: tailoredResume.tailored_resume, is_default: false }),
@@ -206,19 +225,50 @@ export default function App() {
     <div className="flex flex-col h-screen bg-[#0f172a] text-slate-100 overflow-hidden text-[13px]">
 
       {/* ── Header ── */}
-      <header className="flex-shrink-0 flex items-center justify-between px-4 py-3 bg-[#1e293b] border-b border-white/5">
-        <div className="flex items-center gap-2.5">
-          <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-blue-500 to-violet-600 flex items-center justify-center text-sm font-bold shadow-lg">
-            A
+      <header className="flex-shrink-0 bg-[#1e293b] border-b border-white/5">
+        <div className="flex items-center justify-between px-4 py-3">
+          <div className="flex items-center gap-2.5">
+            <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-blue-500 to-violet-600 flex items-center justify-center text-sm font-bold shadow-lg">
+              A
+            </div>
+            <span className="font-semibold tracking-tight">AI Job Assistant</span>
           </div>
-          <span className="font-semibold tracking-tight">AI Job Assistant</span>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setShowUrlEdit(v => !v)}
+              title="Configure backend URL"
+              className="text-[10px] text-slate-600 hover:text-slate-400 transition-colors px-1"
+            >
+              ⚙
+            </button>
+            <span className={`w-1.5 h-1.5 rounded-full ${backendOk ? 'bg-emerald-400' : 'bg-red-400'}`} />
+            <span className={`text-[11px] ${backendOk ? 'text-emerald-400' : 'text-red-400'}`}>
+              {backendOk ? 'Live' : 'Offline'}
+            </span>
+          </div>
         </div>
-        <div className="flex items-center gap-1.5">
-          <span className={`w-1.5 h-1.5 rounded-full ${backendOk ? 'bg-emerald-400' : 'bg-red-400'}`} />
-          <span className={`text-[11px] ${backendOk ? 'text-emerald-400' : 'text-red-400'}`}>
-            {backendOk ? 'Live' : 'Offline'}
-          </span>
-        </div>
+        {showUrlEdit && (
+          <div className="px-4 pb-3 flex items-center gap-2">
+            <input
+              type="url"
+              value={urlDraft}
+              onChange={e => setUrlDraft(e.target.value)}
+              placeholder="http://localhost:8000"
+              className="flex-1 bg-[#0f172a] border border-white/10 rounded-lg px-2.5 py-1.5 text-[11px] text-slate-300 font-mono focus:outline-none focus:ring-1 focus:ring-blue-500"
+            />
+            <button
+              onClick={async () => {
+                await setBackendUrl(urlDraft)
+                setShowUrlEdit(false)
+                checkHealth()
+                loadDefaultResume()
+              }}
+              className="text-[11px] px-3 py-1.5 bg-blue-600 hover:bg-blue-500 text-white rounded-lg transition-colors"
+            >
+              Save
+            </button>
+          </div>
+        )}
       </header>
 
       {/* ── Loading bar ── */}
@@ -272,6 +322,7 @@ export default function App() {
             <div className="flex-1 overflow-y-auto">
               {activeTab === 'job' && (
                 <JobInfo
+                  apiBase={apiBase}
                   jobData={jobData}
                   defaultResume={defaultResume}
                   onTailorResume={handleTailorResume}
@@ -284,6 +335,7 @@ export default function App() {
               )}
               {activeTab === 'resume' && (
                 <ResumeSection
+                  apiBase={apiBase}
                   result={tailoredResume}
                   jobData={jobData}
                   resumeId={defaultResume?.id ?? null}
@@ -294,6 +346,7 @@ export default function App() {
               )}
               {activeTab === 'cover-letter' && (
                 <CoverLetterSection
+                  apiBase={apiBase}
                   result={coverLetter}
                   onGenerate={handleCoverLetter}
                   isLoading={isLoading}
@@ -308,7 +361,7 @@ export default function App() {
       <footer className="flex-shrink-0 border-t border-white/5 bg-[#1e293b] px-4 py-2.5 flex items-center justify-between">
         <span className="text-[10px] text-slate-600">v0.1.0</span>
         <button
-          onClick={() => chrome.tabs.create({ url: 'http://localhost:8000' })}
+          onClick={() => chrome.tabs.create({ url: apiBase })}
           className="text-[11px] text-blue-400 hover:text-blue-300 flex items-center gap-1 transition-colors"
         >
           Dashboard ↗

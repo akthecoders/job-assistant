@@ -2,13 +2,14 @@ import React, { useState } from 'react'
 import type { CoverLetterResult, JobData } from '../App'
 
 interface Props {
+  apiBase: string
   result: CoverLetterResult | null
   onGenerate: () => void
   isLoading: boolean
   jobData?: JobData | null
 }
 
-export default function CoverLetterSection({ result, onGenerate, isLoading, jobData }: Props) {
+export default function CoverLetterSection({ apiBase, result, onGenerate, isLoading, jobData }: Props) {
   const [copied, setCopied] = useState(false)
   const [downloading, setDownloading] = useState(false)
 
@@ -26,7 +27,7 @@ export default function CoverLetterSection({ result, onGenerate, isLoading, jobD
     const filename = `${company}_${title}_CoverLetter`
     setDownloading(true)
     try {
-      const resp = await fetch('http://localhost:8000/api/resumes/download-pdf', {
+      const resp = await fetch(`${apiBase}/api/resumes/download-pdf`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ text: result.cover_letter, filename }),

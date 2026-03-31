@@ -121,13 +121,21 @@ function fillInputs(profile: AutofillProfile): number {
   return filled
 }
 
+// ─── Context validity guard ──────────────────────────────────────────────────
+function isContextAlive(): boolean {
+  try { return !!chrome.runtime?.id } catch { return false }
+}
+
 // Listen for autofill message from side panel
-chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
-  if (message.type === 'AUTOFILL_FORM') {
+if (isContextAlive()) {
+  chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
+    if (message.type !== 'AUTOFILL_FORM') return
     const profile: AutofillProfile = message.profile
     const count = fillInputs(profile)
-    sendResponse({ filled: count })
-  }
-})
+    // sendResponse can throw if the context was invalidated between the guard
+    // and this callback executing — wrap it so the error stays silent.
+    try { sendResponse({ filled: count }) } catch { /* context invalidated */ }
+  })
+}
 
 export {}

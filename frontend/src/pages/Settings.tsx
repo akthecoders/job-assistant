@@ -1,12 +1,19 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import {
   Save, Zap, CheckCircle, AlertCircle, Loader2,
-  Server, Key, Cpu, Globe, Info, ExternalLink, User
+  Server, Key, Cpu, Globe, Info, ExternalLink, User, RefreshCw
 } from 'lucide-react'
 import { getSettings, updateSettings, getAIHealth } from '../api'
 import type { Settings } from '../types'
 
-const AUTOFILL_API = 'http://localhost:8000/api/autofill/profile'
+const API = ''  // relative — served from the same origin
+
+interface ModelOption {
+  id: string
+  display_name: string
+}
+
+const AUTOFILL_API = '/api/autofill/profile'
 
 interface AutofillProfile {
   full_name?: string
@@ -46,9 +53,21 @@ const DEFAULT_SETTINGS: Settings = {
   provider: 'ollama',
   ollama_url: 'http://localhost:11434',
   ollama_model: 'llama3.2',
-  anthropic_model: 'claude-3-5-haiku-20241022',
+  anthropic_model: 'claude-haiku-4-5-20251001',
   anthropic_api_key: '',
 }
+
+// Fallback model list shown before the user clicks "Fetch models".
+// These are the actual models available as of 2026; the list is refreshed
+// dynamically via the "Fetch models" button once an API key is entered.
+const KNOWN_ANTHROPIC_MODELS: ModelOption[] = [
+  { id: 'claude-haiku-4-5-20251001',   display_name: 'Claude Haiku 4.5  (Fast · cheapest)' },
+  { id: 'claude-sonnet-4-5-20250929',  display_name: 'Claude Sonnet 4.5  (Balanced)' },
+  { id: 'claude-opus-4-5-20251101',    display_name: 'Claude Opus 4.5  (Most capable)' },
+  { id: 'claude-sonnet-4-20250514',    display_name: 'Claude Sonnet 4' },
+  { id: 'claude-opus-4-20250514',      display_name: 'Claude Opus 4' },
+  { id: 'claude-3-haiku-20240307',     display_name: 'Claude Haiku 3  (Legacy)' },
+]
 
 type TestStatus = 'idle' | 'testing' | 'success' | 'failure'
 
@@ -61,10 +80,49 @@ export default function SettingsPage() {
   const [testMessage, setTestMessage] = useState('')
   const [loadError, setLoadError] = useState('')
 
+  // Dynamic model list state — pre-populated with known models as fallback
+  const [anthropicModels, setAnthropicModels] = useState<ModelOption[]>(KNOWN_ANTHROPIC_MODELS)
+  const [ollamaModels, setOllamaModels] = useState<ModelOption[]>([])
+  const [modelsFetching, setModelsFetching] = useState(false)
+  const [modelsFetchError, setModelsFetchError] = useState('')
+  const anthropicKeyRef = useRef('')
+
   // Autofill profile state
   const [autofill, setAutofill] = useState<AutofillProfile>(EMPTY_AUTOFILL)
   const [autofillSaving, setAutofillSaving] = useState(false)
   const [autofillStatus, setAutofillStatus] = useState<'idle' | 'saved' | 'error'>('idle')
+
+  const fetchModels = useCallback(async (
+    provider: string,
+    apiKey: string,
+    ollamaUrl: string,
+    silent = false,
+  ) => {
+    if (!silent) setModelsFetching(true)
+    setModelsFetchError('')
+    try {
+      const res = await fetch(`${API}/api/ai/models`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ provider, api_key: apiKey, ollama_url: ollamaUrl }),
+      })
+      const data = await res.json()
+      if (data.error) {
+        if (!silent) setModelsFetchError(data.error)
+        return
+      }
+      if (provider === 'anthropic') {
+        const fetched: ModelOption[] = data.models ?? []
+        setAnthropicModels(fetched.length > 0 ? fetched : KNOWN_ANTHROPIC_MODELS)
+      } else {
+        setOllamaModels(data.models ?? [])
+      }
+    } catch {
+      if (!silent) setModelsFetchError('Could not reach the backend.')
+    } finally {
+      if (!silent) setModelsFetching(false)
+    }
+  }, [])
 
   useEffect(() => {
     const load = async () => {
@@ -72,7 +130,17 @@ export default function SettingsPage() {
       setLoadError('')
       try {
         const data = await getSettings()
-        setSettings({ ...DEFAULT_SETTINGS, ...data })
+        const merged = { ...DEFAULT_SETTINGS, ...data }
+        setSettings(merged)
+        anthropicKeyRef.current = merged.anthropic_api_key ?? ''
+        // Auto-fetch models silently so the dropdown is always up to date
+        if (merged.provider === 'ollama') {
+          fetchModels('ollama', '', merged.ollama_url ?? 'http://localhost:11434', true)
+        }
+        if (merged.anthropic_api_key) {
+          // Always refresh Anthropic models when a key is already saved
+          fetchModels('anthropic', merged.anthropic_api_key, '', true)
+        }
       } catch {
         setLoadError('Failed to load settings. Is the backend running?')
       } finally {
@@ -80,7 +148,7 @@ export default function SettingsPage() {
       }
     }
     load()
-  }, [])
+  }, [fetchModels])
 
   // Load autofill profile on mount
   useEffect(() => {
@@ -295,19 +363,49 @@ export default function SettingsPage() {
                 <p className="text-xs text-slate-400 mt-1">The URL where your Ollama server is running.</p>
               </div>
               <div>
-                <label className="flex items-center gap-1.5 text-sm font-medium text-slate-700 mb-1.5">
-                  <Cpu className="w-3.5 h-3.5 text-slate-500" />
-                  Model Name
-                </label>
-                <input
-                  type="text"
-                  value={settings.ollama_model}
-                  onChange={e => setSettings(s => ({ ...s, ollama_model: e.target.value }))}
-                  placeholder="e.g. llama3.2, mistral, phi3"
-                  className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent font-mono"
-                />
+                <div className="flex items-center justify-between mb-1.5">
+                  <label className="flex items-center gap-1.5 text-sm font-medium text-slate-700">
+                    <Cpu className="w-3.5 h-3.5 text-slate-500" />
+                    Model
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() => fetchModels('ollama', '', settings.ollama_url ?? 'http://localhost:11434')}
+                    disabled={modelsFetching}
+                    className="flex items-center gap-1 text-xs text-blue-600 hover:text-blue-800 disabled:opacity-50 transition-colors"
+                  >
+                    <RefreshCw className={`w-3 h-3 ${modelsFetching ? 'animate-spin' : ''}`} />
+                    {modelsFetching ? 'Fetching…' : 'Refresh models'}
+                  </button>
+                </div>
+                {ollamaModels.length > 0 ? (
+                  <select
+                    value={settings.ollama_model}
+                    onChange={e => setSettings(s => ({ ...s, ollama_model: e.target.value }))}
+                    className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white font-mono"
+                  >
+                    {/* Keep current value if not in list */}
+                    {!ollamaModels.find(m => m.id === settings.ollama_model) && (
+                      <option value={settings.ollama_model}>{settings.ollama_model}</option>
+                    )}
+                    {ollamaModels.map(m => (
+                      <option key={m.id} value={m.id}>{m.display_name}</option>
+                    ))}
+                  </select>
+                ) : (
+                  <input
+                    type="text"
+                    value={settings.ollama_model}
+                    onChange={e => setSettings(s => ({ ...s, ollama_model: e.target.value }))}
+                    placeholder="e.g. llama3.2, mistral, phi3"
+                    className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent font-mono"
+                  />
+                )}
+                {modelsFetchError && settings.provider === 'ollama' && (
+                  <p className="text-xs text-red-500 mt-1">{modelsFetchError}</p>
+                )}
                 <p className="text-xs text-slate-400 mt-1">
-                  Must be pulled with <code className="bg-slate-100 px-1 rounded text-xs">ollama pull &lt;model&gt;</code>
+                  Must be pulled first with <code className="bg-slate-100 px-1 rounded text-xs">ollama pull &lt;model&gt;</code>
                 </p>
               </div>
             </>
@@ -321,7 +419,14 @@ export default function SettingsPage() {
                 <input
                   type="password"
                   value={settings.anthropic_api_key}
-                  onChange={e => setSettings(s => ({ ...s, anthropic_api_key: e.target.value }))}
+                  onChange={e => {
+                    setSettings(s => ({ ...s, anthropic_api_key: e.target.value }))
+                    // Clear fetched models when key changes so user re-fetches
+                    if (e.target.value !== anthropicKeyRef.current) {
+                      setAnthropicModels([])
+                      setModelsFetchError('')
+                    }
+                  }}
                   placeholder="sk-ant-..."
                   className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent font-mono"
                 />
@@ -338,20 +443,55 @@ export default function SettingsPage() {
                 </p>
               </div>
               <div>
-                <label className="flex items-center gap-1.5 text-sm font-medium text-slate-700 mb-1.5">
-                  <Cpu className="w-3.5 h-3.5 text-slate-500" />
-                  Model
-                </label>
-                <select
-                  value={settings.anthropic_model}
-                  onChange={e => setSettings(s => ({ ...s, anthropic_model: e.target.value }))}
-                  className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white font-mono"
-                >
-                  <option value="claude-3-5-haiku-20241022">claude-3-5-haiku-20241022 (Fast)</option>
-                  <option value="claude-3-5-sonnet-20241022">claude-3-5-sonnet-20241022 (Balanced)</option>
-                  <option value="claude-opus-4-5">claude-opus-4-5 (Most capable)</option>
-                </select>
-                <p className="text-xs text-slate-400 mt-1">Choose the Claude model that fits your needs and budget.</p>
+                <div className="flex items-center justify-between mb-1.5">
+                  <label className="flex items-center gap-1.5 text-sm font-medium text-slate-700">
+                    <Cpu className="w-3.5 h-3.5 text-slate-500" />
+                    Model
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() => fetchModels('anthropic', settings.anthropic_api_key ?? '', '')}
+                    disabled={modelsFetching || !settings.anthropic_api_key}
+                    className="flex items-center gap-1 text-xs text-blue-600 hover:text-blue-800 disabled:opacity-40 transition-colors"
+                    title={!settings.anthropic_api_key ? 'Enter your API key first' : 'Fetch available Claude models'}
+                  >
+                    <RefreshCw className={`w-3 h-3 ${modelsFetching ? 'animate-spin' : ''}`} />
+                    {modelsFetching ? 'Fetching…' : anthropicModels.length > 0 ? 'Refresh models' : 'Fetch models'}
+                  </button>
+                </div>
+                {anthropicModels.length > 0 ? (
+                  <select
+                    value={settings.anthropic_model}
+                    onChange={e => setSettings(s => ({ ...s, anthropic_model: e.target.value }))}
+                    className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white font-mono"
+                  >
+                    {/* Keep current value visible if not in fetched list */}
+                    {!anthropicModels.find(m => m.id === settings.anthropic_model) && (
+                      <option value={settings.anthropic_model}>{settings.anthropic_model}</option>
+                    )}
+                    {anthropicModels.map(m => (
+                      <option key={m.id} value={m.id}>{m.display_name}</option>
+                    ))}
+                  </select>
+                ) : (
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      value={settings.anthropic_model}
+                      onChange={e => setSettings(s => ({ ...s, anthropic_model: e.target.value }))}
+                      placeholder="claude-3-5-haiku-20241022"
+                      className="flex-1 border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent font-mono"
+                    />
+                  </div>
+                )}
+                {modelsFetchError && settings.provider === 'anthropic' && (
+                  <p className="text-xs text-red-500 mt-1">{modelsFetchError}</p>
+                )}
+                <p className="text-xs text-slate-400 mt-1">
+                  {anthropicModels.length > 0
+                    ? `${anthropicModels.length} models available — choose one above.`
+                    : 'Click "Fetch models" after entering your API key to see all available Claude models.'}
+                </p>
               </div>
             </>
           )}

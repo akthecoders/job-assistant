@@ -3,6 +3,7 @@ import type { TailoredResumeResult, JobData } from '../App'
 import ATSScore from './ATSScore'
 
 interface Props {
+  apiBase: string
   result: TailoredResumeResult | null
   jobData: JobData | null
   resumeId: number | null
@@ -11,7 +12,7 @@ interface Props {
   isLoading: boolean
 }
 
-export default function ResumeSection({ result, jobData, resumeId, onRetailor, onSaveToResumes, isLoading }: Props) {
+export default function ResumeSection({ apiBase, result, jobData, resumeId, onRetailor, onSaveToResumes, isLoading }: Props) {
   const [copied, setCopied] = useState(false)
   const [saving, setSaving] = useState(false)
   const [savedName, setSavedName] = useState<string | null>(null)
@@ -35,8 +36,8 @@ export default function ResumeSection({ result, jobData, resumeId, onRetailor, o
     try {
       // Prefer in-place edit of original PDF when we have the resume ID
       const url = resumeId
-        ? `http://localhost:8000/api/resumes/${resumeId}/tailored-pdf`
-        : 'http://localhost:8000/api/resumes/download-pdf'
+        ? `${apiBase}/api/resumes/${resumeId}/tailored-pdf`
+        : `${apiBase}/api/resumes/download-pdf`
       const body = resumeId
         ? JSON.stringify({ tailored_text: result.tailored_resume, filename })
         : JSON.stringify({ text: result.tailored_resume, filename })
