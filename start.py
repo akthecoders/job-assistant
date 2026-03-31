@@ -75,6 +75,17 @@ def warn(msg: str) -> None:
 def fail(msg: str) -> None:
     print(f"  {RED}✗{RESET}  {msg}")
 
+def die(msg: str) -> None:
+    """Print a fatal error and exit, keeping the window open on Windows."""
+    fail(msg)
+    if IS_WINDOWS:
+        print("\n  Press Enter to close this window...")
+        try:
+            input()
+        except Exception:
+            pass
+    sys.exit(1)
+
 def ask(prompt: str, default: str = "") -> str:
     suffix = f" [{default}]" if default else ""
     try:
@@ -108,7 +119,7 @@ def check_python() -> None:
         fail(f"Python 3.11+ required — found {major}.{minor}")
         print("   Install the latest Python from https://python.org")
         print("   Or use pyenv / conda to manage versions.")
-        sys.exit(1)
+        die("Upgrade Python and re-run start.bat")
     ok(f"Python {major}.{minor} ({sys.executable})")
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -204,10 +215,11 @@ def setup_venv() -> None:
     fail("Could not create a Python virtual environment.")
     print()
     print("  Manual fix options:")
-    print("    macOS:  brew install python@3.11")
-    print("    Ubuntu: sudo apt install python3-venv")
-    print("    Any:    pip install virtualenv && virtualenv backend/.venv")
-    sys.exit(1)
+    print("    Windows: reinstall Python from https://python.org — ensure pip is included")
+    print("    macOS:   brew install python@3.11")
+    print("    Ubuntu:  sudo apt install python3-venv")
+    print("    Any:     pip install virtualenv && virtualenv backend/.venv")
+    die("Virtual environment setup failed.")
 
 # ──────────────────────────────────────────────────────────────────────────────
 # 3. Backend dependencies
@@ -456,7 +468,9 @@ def start_server(port: int) -> None:
             pass
     threading.Thread(target=_open_browser, daemon=True).start()
 
-    # Launch uvicorn — replace current process on Unix so Ctrl+C works cleanly
+    # Launch uvicorn.
+    # - Unix: replace current process so Ctrl+C is forwarded cleanly.
+    # - Windows: use subprocess.run because execv can mis-handle spaced paths.
     cmd = [
         str(VENV_PYTHON), "-m", "uvicorn",
         "main:app",
@@ -464,10 +478,10 @@ def start_server(port: int) -> None:
         "--port", str(port),
         "--reload",
     ]
-    if hasattr(os, "execv"):  # Unix
+    if not IS_WINDOWS and hasattr(os, "execv"):
         os.chdir(str(BACKEND))
         os.execv(str(VENV_PYTHON), cmd)
-    else:                      # Windows
+    else:
         proc = subprocess.run(cmd, cwd=str(BACKEND))
         sys.exit(proc.returncode)
 
@@ -499,9 +513,53 @@ def main() -> None:
     start_server(port)
 
 
+def _windows_pause(msg: str = "") -> None:
+    """On Windows keep the console open so the user can read errors."""
+    if IS_WINDOWS:
+        if msg:
+            print(f"\n  {msg}")
+        print("\n  Press Enter to close this window...")
+        try:
+            input()
+        except Exception:
+            pass
+
+
 if __name__ == "__main__":
+    # Detect double-click on Windows: the parent process is explorer.exe,
+    # meaning there is no persistent terminal — warn the user.
+    if IS_WINDOWS:
+        try:
+            import ctypes
+            hwnd = ctypes.windll.kernel32.GetConsoleWindow()
+            if hwnd:
+                # Check if this console was created by this process (double-click)
+                # vs inherited from an existing terminal (cmd.exe / PowerShell)
+                import ctypes.wintypes
+                pid = ctypes.wintypes.DWORD()
+                ctypes.windll.user32.GetWindowThreadProcessId(hwnd, ctypes.byref(pid))
+                if pid.value == os.getpid():
+                    print()
+                    print("  TIP: For the best experience run from a terminal:")
+                    print("       cmd.exe  →  start.bat")
+                    print("       PowerShell  →  .\\start.bat")
+                    print()
+        except Exception:
+            pass
+
     try:
         main()
     except KeyboardInterrupt:
         print("\n\nStopped.")
         sys.exit(0)
+    except SystemExit as e:
+        # sys.exit(1) from our own error handlers — keep window open on Windows
+        if e.code and int(e.code) != 0:
+            _windows_pause("Setup failed — scroll up to read the error.")
+        raise
+    except Exception as e:
+        print(f"\n{RED}Unexpected error:{RESET} {e}")
+        import traceback
+        traceback.print_exc()
+        _windows_pause("Unexpected error — scroll up to read the full traceback.")
+        sys.exit(1)
